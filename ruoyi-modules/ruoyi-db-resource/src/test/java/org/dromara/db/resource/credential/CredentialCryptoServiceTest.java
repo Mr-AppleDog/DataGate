@@ -2,7 +2,7 @@ package org.dromara.db.resource.credential;
 
 import org.dromara.db.core.enums.CredentialPurpose;
 import org.dromara.db.core.security.SecretValue;
-import org.dromara.db.resource.spi.KekProvider;
+import org.dromara.db.core.spi.KekProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;

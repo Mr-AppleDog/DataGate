@@ -29,4 +29,9 @@ public class PasswordLoginBody extends LoginBody {
 //    @Pattern(regexp = RegexConstants.PASSWORD, message = "{user.password.format.valid}")
     private String password;
 
+    /**
+     * TOTP 验证码或恢复码（DataGate M1-01，IAM-005：已绑定用户必填）
+     */
+    private String mfaCode;
+
 }

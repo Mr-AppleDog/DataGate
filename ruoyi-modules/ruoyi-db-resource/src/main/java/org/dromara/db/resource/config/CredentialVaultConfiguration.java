@@ -1,7 +1,7 @@
 package org.dromara.db.resource.config;
 
 import org.dromara.db.resource.credential.CredentialCryptoService;
-import org.dromara.db.resource.spi.KekProvider;
+import org.dromara.db.core.spi.KekProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

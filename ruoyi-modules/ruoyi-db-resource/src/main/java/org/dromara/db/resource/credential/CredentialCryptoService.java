@@ -2,7 +2,7 @@ package org.dromara.db.resource.credential;
 
 import org.dromara.db.core.enums.CredentialPurpose;
 import org.dromara.db.core.security.SecretValue;
-import org.dromara.db.resource.spi.KekProvider;
+import org.dromara.db.core.spi.KekProvider;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;

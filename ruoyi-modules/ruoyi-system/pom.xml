@@ -22,6 +22,17 @@
             <artifactId>ruoyi-common-core</artifactId>
         </dependency>
 
+        <!-- DataGate M1-01：TOTP 身份强化（KEK SPI / 统一错误码 / 安全审计） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-audit</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-common-doc</artifactId>
@@ -98,6 +109,12 @@
         <dependency>
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-common-sse</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
