@@ -265,6 +265,90 @@ class MysqlQueryParserTest {
         assertEquals("QUERY_PARSE_FAILED", ex.getErrorCode().name());
     }
 
+    // ====================== 解析器韧性（§15 注释/大小写/字符串分号混淆）======================
+
+    @Test
+    @DisplayName("韧性：注释中的分号不拆分语句")
+    void commentSemicolonNoSplit() {
+        ParsedStatement s = one("SELECT * FROM t /* ; comment */ WHERE a = 1");
+        assertEquals(DbAction.QUERY, s.requiredAction());
+        assertTrue(s.readonly());
+        assertTrue(s.resourcePaths().contains("/table/t"));
+    }
+
+    @Test
+    @DisplayName("韧性：字符串字面量中的分号不拆分语句")
+    void stringSemicolonNoSplit() {
+        ParsedStatement s = one("SELECT 'a;b', col FROM t WHERE x = 'c;d'");
+        assertEquals(DbAction.QUERY, s.requiredAction());
+        assertTrue(s.readonly());
+        assertTrue(s.resourcePaths().contains("/table/t"));
+    }
+
+    @Test
+    @DisplayName("韧性：真实分号拆分、字符串内分号保留")
+    void realSemicolonSplitsStringSemicolonDoesNot() {
+        List<ParsedStatement> list = parser.parse("SELECT * FROM t WHERE x = ';'; SELECT * FROM t2");
+        assertEquals(2, list.size(), "字符串内分号不拆分，真实分号拆分");
+        assertTrue(list.get(0).resourcePaths().contains("/table/t"));
+        assertTrue(list.get(1).resourcePaths().contains("/table/t2"));
+    }
+
+    @Test
+    @DisplayName("韧性：行尾注释、多行字符串不破坏解析")
+    void trailingCommentAndMultilineString() {
+        assertTrue(parser.parse("SELECT * FROM t -- ; eol").get(0).readonly());
+        assertTrue(parser.parse("SELECT * FROM t WHERE x = 'line1\nline2;'").get(0).readonly());
+    }
+
+    @Test
+    @DisplayName("韧性：大小写不敏感、表名保留原样")
+    void caseInsensitive() {
+        ParsedStatement s = one("select * from T Where X = 1");
+        assertEquals(DbAction.QUERY, s.requiredAction());
+        assertTrue(s.readonly());
+        assertTrue(s.resourcePaths().contains("/table/T"), "表名保留原样: " + s.resourcePaths());
+    }
+
+    // ====================== SHOW 安全子集（§6.2）======================
+
+    @Test
+    @DisplayName("SHOW 安全子集：DATABASES/TABLES/COLUMNS/INDEX/CREATE TABLE/TABLE STATUS -> METADATA_READ 只读")
+    void showSafeSubset() {
+        assertShowSafe("SHOW DATABASES", null);
+        assertShowSafe("SHOW TABLES FROM mydb", "/db/mydb");
+        assertShowSafe("SHOW COLUMNS FROM t", "/table/t");
+        assertShowSafe("SHOW INDEX FROM t", "/table/t");
+        assertShowSafe("SHOW CREATE TABLE t", "/table/t");
+        assertShowSafe("SHOW TABLE STATUS FROM mydb", "/db/mydb");
+    }
+
+    @Test
+    @DisplayName("SHOW 不安全子集：PROCESSLIST/GRANTS/VARIABLES/MASTER STATUS -> readonly=false")
+    void showUnsafeSubset() {
+        assertShowUnsafe("SHOW PROCESSLIST");
+        assertShowUnsafe("SHOW GRANTS");
+        assertShowUnsafe("SHOW VARIABLES");
+        assertShowUnsafe("SHOW MASTER STATUS");
+    }
+
+    private void assertShowSafe(String sql, String expectedPath) {
+        ParsedStatement s = one(sql);
+        assertEquals(DbAction.METADATA_READ, s.requiredAction(), "安全 SHOW 动作: " + sql);
+        assertTrue(s.readonly(), "安全 SHOW readonly=true: " + sql);
+        if (expectedPath != null) {
+            assertTrue(s.resourcePaths().contains(expectedPath),
+                "SHOW 引用资源 " + expectedPath + ": " + s.resourcePaths());
+        }
+        assertNormalizedAndFingerprint(s);
+    }
+
+    private void assertShowUnsafe(String sql) {
+        ParsedStatement s = one(sql);
+        assertFalse(s.readonly(), "不安全 SHOW readonly=false: " + sql);
+        assertEquals(DbAction.CHANGE_DDL, s.requiredAction(), "不安全 SHOW 动作: " + sql);
+    }
+
     // ====================== 解析器版本 ======================
 
     @Test

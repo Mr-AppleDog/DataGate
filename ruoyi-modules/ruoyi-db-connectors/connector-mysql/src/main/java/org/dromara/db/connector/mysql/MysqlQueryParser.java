@@ -16,7 +16,12 @@ import com.alibaba.druid.sql.ast.statement.SQLRevokeStatement;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
 import com.alibaba.druid.sql.ast.statement.SQLSetStatement;
+import com.alibaba.druid.sql.ast.statement.SQLShowColumnsStatement;
+import com.alibaba.druid.sql.ast.statement.SQLShowCreateTableStatement;
+import com.alibaba.druid.sql.ast.statement.SQLShowDatabasesStatement;
+import com.alibaba.druid.sql.ast.statement.SQLShowIndexesStatement;
 import com.alibaba.druid.sql.ast.statement.SQLShowStatement;
+import com.alibaba.druid.sql.ast.statement.SQLShowTablesStatement;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import com.alibaba.druid.sql.ast.statement.SQLWithSubqueryClause;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlAlterUserStatement;
@@ -32,6 +37,7 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlLoadDataInFileStat
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlLoadXmlStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlLockTableStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTableStatusStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnlockTablesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateStatement;
 import com.alibaba.druid.sql.dialect.mysql.parser.MySqlStatementParser;
@@ -144,6 +150,16 @@ public class MysqlQueryParser implements QueryParser {
         "NAME_CONST", "GTID_SUBTRACT", "GTID_SUBSET"
     );
 
+    /**
+     * SHOW 安全子集（docs/06 §6.2）：库名/表名/列名/索引/建表 DDL/表状态/建库 DDL 的只读元数据查询。
+     * 匹配 AST 节点类名片段；未命中者（PROCESSLIST/GRANTS/MASTER STATUS/VARIABLES/STATUS/
+     * PLUGINS/PRIVILEGES 等）保守归 readonly=false。SHOW 结果按授权回放由元数据 lane 实施。
+     */
+    private static final Set<String> SAFE_SHOW = Set.of(
+        "Databases", "ShowTables", "ShowColumns", "ShowIndexes",
+        "ShowCreateTable", "ShowTableStatus", "ShowCreateDatabase"
+    );
+
     @Override
     public List<ParsedStatement> parse(String statement) {
         if (statement == null || statement.isBlank()) {
@@ -197,6 +213,10 @@ public class MysqlQueryParser implements QueryParser {
             rc.addTableName(load.getTableName());
         } else if (stmt instanceof MySqlLoadXmlStatement load) {
             rc.addTableName(load.getTableName());
+        }
+        // SHOW 的引用库/表不走 SQLExprTableSource（SHOW INDEX 除外，其表源由 visitor 捕获）
+        if (stmt instanceof SQLShowStatement) {
+            rc.collectShow(stmt);
         }
 
         DbAction action = base.action;
@@ -278,9 +298,11 @@ public class MysqlQueryParser implements QueryParser {
         if (stmt instanceof SQLSetStatement) {
             return new Classification("SET", DbAction.CHANGE_DDL, false);
         }
-        // SHOW：安全子集（§6.2）的精细过滤与结果按授权回放属元数据 lane，本切片保守失败关闭
+        // SHOW 安全子集（§6.2）：库/表/列/索引/建表 DDL/表状态/建库 DDL → METADATA_READ 只读；
+        // 其余 SHOW（PROCESSLIST/GRANTS/MASTER STATUS/VARIABLES/STATUS/PLUGINS/PRIVILEGES 等）保守 readonly=false。
+        // SHOW 结果按授权回放由元数据 lane 实施，本解析器只负责分类与引用资源提取。
         if (stmt instanceof SQLShowStatement) {
-            return new Classification("SHOW", DbAction.CHANGE_DDL, false);
+            return classifyShow(stmt);
         }
         // 管理动作（§6.3 强制拒绝项）：USER / GRANT / REVOKE / KILL / LOCK / UNLOCK / FLUSH / BINLOG
         if (stmt instanceof MySqlCreateUserStatement || stmt instanceof MySqlAlterUserStatement
@@ -305,6 +327,20 @@ public class MysqlQueryParser implements QueryParser {
         }
         // 未知语法 → 失败关闭
         throw fail("不支持的语句类型: " + stmt.getClass().getSimpleName(), null);
+    }
+
+    /**
+     * SHOW 安全子集分类（docs/06 §6.2）。按 AST 节点类名片段匹配：
+     * 命中 {@link #SAFE_SHOW} → METADATA_READ/readonly=true；否则保守 readonly=false/CHANGE_DDL。
+     */
+    private Classification classifyShow(SQLStatement stmt) {
+        String cn = stmt.getClass().getSimpleName();
+        for (String frag : SAFE_SHOW) {
+            if (cn.contains(frag)) {
+                return new Classification("SHOW", DbAction.METADATA_READ, true);
+            }
+        }
+        return new Classification("SHOW", DbAction.CHANGE_DDL, false);
     }
 
     /** DDL 家族动词判定（按 AST 节点的 Java 类名前缀，节点的解析已由 AST 完成）。 */
@@ -555,6 +591,38 @@ public class MysqlQueryParser implements QueryParser {
             String s = name.getSimpleName();
             if (s != null && !s.isBlank()) {
                 tables.add("/table/" + path(s));
+            }
+        }
+
+        /** 直接给出的库名（SQLName）补一条数据库资源（SHOW ... FROM db）。 */
+        void addDatabaseName(SQLName name) {
+            if (name == null) {
+                return;
+            }
+            String s = name.getSimpleName();
+            if (s != null && !s.isBlank()) {
+                tables.add("/db/" + path(s));
+            }
+        }
+
+        /**
+         * SHOW 的引用库/表提取（docs/06 §6.2）。SHOW INDEX 的表源已由 visitor 捕获；
+         * SHOW COLUMNS/CREATE TABLE/TABLE STATUS/DATABASES/TABLES 的库名表名不走 SQLExprTableSource，单独提取。
+         */
+        void collectShow(SQLStatement stmt) {
+            if (stmt instanceof SQLShowColumnsStatement sc) {
+                addTableName(sc.getTable());
+                addDatabaseName(sc.getDatabase());
+            } else if (stmt instanceof SQLShowCreateTableStatement sct) {
+                addTableName(sct.getName());
+            } else if (stmt instanceof SQLShowTablesStatement st) {
+                addDatabaseName(st.getDatabase());
+            } else if (stmt instanceof SQLShowDatabasesStatement sd) {
+                addDatabaseName(sd.getDatabase());
+            } else if (stmt instanceof MySqlShowTableStatusStatement ts) {
+                addDatabaseName(ts.getDatabase());
+            } else if (stmt instanceof SQLShowIndexesStatement) {
+                // 表源已由 visit(SQLExprTableSource) 捕获
             }
         }
 
