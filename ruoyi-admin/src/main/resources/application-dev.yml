@@ -106,24 +106,6 @@ redisson:
 --- # mail 邮件发送（M4 告警通道启用前保持关闭）
 mail:
   enabled: false
-  host: smtp.163.com
-  port: 465
-  # 是否需要用户名密码验证
-  auth: true
-  # 发送方，遵循RFC-822标准
-  from: xxx@163.com
-  # 用户名（注意：如果使用foxmail邮箱，此处user为qq号）
-  user: xxx@163.com
-  # 密码（注意，某些邮箱需要为SMTP服务单独设置密码，详情查看相关帮助）
-  pass: xxxxxxxxxx
-  # 使用 STARTTLS安全连接，STARTTLS是对纯文本通信协议的扩展
-  starttlsEnable: true
-  # 使用SSL安全连接
-  sslEnable: true
-  # SMTP超时时长，单位毫秒，缺省值不超时
-  timeout: 0
-  # Socket连接超时值，单位毫秒，缺省值不超时
-  connectionTimeout: 0
 
 --- # sms 短信（DataGate 首版只提供本地账号登录，不使用短信/社交登录；docs/00 第 3.2 节）
 sms:
@@ -137,3 +119,10 @@ sms:
 justauth:
   address: http://localhost:80
   type: {}
+
+--- # DataGate 安全底座（M1）
+datagate:
+  security:
+    credential:
+      # 开发环境本地 KEK 文件（仅开发用，生产必须为只读 Secret 挂载；本路径不得进 Git）
+      kek-file: ${DATAGATE_KEK_FILE:C:\\Users\\cxy784853792\\.datagate\\kek.txt}

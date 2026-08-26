@@ -50,3 +50,10 @@ nbdist/
 !*/build/*.xml
 
 .flattened-pom.xml
+
+# DataGate：KEK/秘密文件一律不进 Git（CRED-003）
+*.kek
+**/kek*.txt
+**/secret*.properties
+*.pem
+*.key
