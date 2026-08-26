@@ -7,12 +7,13 @@ import java.util.Map;
 
 /**
  * 连接配置（docs/02 第 7.3 节）。只含非秘密信息：
- * 主机、端口、数据库、参数白名单、TLS 模式和超时。
+ * 主机、端口、数据库、用户名、参数白名单、TLS 模式和超时。
  * 密码、Token、AccessKey Secret 永远使用 SecretValue 单独传递。
  *
  * @param host             主机
  * @param port             端口
  * @param defaultDatabase  默认库（可空）
+ * @param username         数据库用户名（非秘密，docs/04：可在受限管理页显示）
  * @param options          白名单连接参数（禁止包含密码类键）
  * @param tlsMode          TLS 模式
  * @param connectTimeout   连接超时
@@ -23,6 +24,7 @@ public record ConnectionProfile(
     String host,
     int port,
     String defaultDatabase,
+    String username,
     Map<String, String> options,
     TlsMode tlsMode,
     Duration connectTimeout,

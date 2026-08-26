@@ -14,11 +14,21 @@ public interface IAuditService {
 
     /**
      * 追加一条审计事件（同事务内按分片串行化计算哈希链）。
+     * 随调用方事务提交/回滚（REQUIRED）——成功路径与业务操作同生共死。
      *
      * @param input 审计输入（禁止包含秘密与查询结果）
      * @return eventId
      */
     String append(AuditEventInput input);
+
+    /**
+     * 在独立事务中追加审计事件（REQUIRES_NEW）——用于拒绝/失败路径，
+     * 业务事务回滚后审计仍然留存（攻击与失败必须可查）。
+     *
+     * @param input 审计输入
+     * @return eventId
+     */
+    String appendIsolated(AuditEventInput input);
 
     /**
      * 校验指定分片（UTC 日，yyyyMMdd）的哈希链完整性。

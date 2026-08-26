@@ -11,6 +11,7 @@ import org.dromara.db.core.enums.AuditCategory;
 import org.dromara.db.core.enums.RetentionClass;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -39,6 +40,19 @@ public class AuditServiceImpl implements IAuditService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String append(AuditEventInput input) {
+        return doAppend(input);
+    }
+
+    /**
+     * 独立事务追加（拒绝/失败路径，业务回滚后审计仍留存）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
+    public String appendIsolated(AuditEventInput input) {
+        return doAppend(input);
+    }
+
+    private String doAppend(AuditEventInput input) {
         // 截断到微秒：与 PostgreSQL timestamptz 精度对齐，保证哈希链校验可重算
         Instant occurredAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
         String chainKey = AuditHashChain.chainKeyOf(occurredAt);
