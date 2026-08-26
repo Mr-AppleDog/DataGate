@@ -8,9 +8,11 @@ import org.dromara.common.mybatis.core.page.PageQuery;
 import org.dromara.common.mybatis.core.page.TableDataInfo;
 import org.dromara.common.web.core.BaseController;
 import org.dromara.db.core.domain.ConnectionTestResult;
+import org.dromara.db.resource.domain.DbMetadataSyncJob;
 import org.dromara.db.resource.domain.bo.DbDataSourceBo;
 import org.dromara.db.resource.domain.vo.DbDataSourceVo;
 import org.dromara.db.resource.service.IDbDataSourceService;
+import org.dromara.db.resource.service.IMetadataSyncService;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +21,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 数据源管理（RES-002~004）。
@@ -35,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DbDataSourceController extends BaseController {
 
     private final IDbDataSourceService dataSourceService;
+    private final IMetadataSyncService metadataSyncService;
 
     /**
      * 分页查询数据源列表
@@ -97,5 +102,23 @@ public class DbDataSourceController extends BaseController {
     @PutMapping("/{id}/disable")
     public R<Void> disable(@PathVariable @NotNull Long id) {
         return toAjax(dataSourceService.disable(id));
+    }
+
+    /**
+     * 触发元数据同步（RES-005：仅 VERIFYING/ACTIVE 状态）
+     */
+    @SaCheckPermission("db:datasource:sync")
+    @PostMapping("/{id}/sync")
+    public R<DbMetadataSyncJob> sync(@PathVariable @NotNull Long id) {
+        return R.ok(metadataSyncService.syncNow(id));
+    }
+
+    /**
+     * 查询最近同步任务
+     */
+    @SaCheckPermission("db:datasource:query")
+    @GetMapping("/{id}/sync-jobs")
+    public R<List<DbMetadataSyncJob>> syncJobs(@PathVariable @NotNull Long id) {
+        return R.ok(metadataSyncService.recentJobs(id, 10));
     }
 }
