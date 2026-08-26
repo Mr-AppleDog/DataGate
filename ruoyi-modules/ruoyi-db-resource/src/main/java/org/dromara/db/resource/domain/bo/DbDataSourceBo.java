@@ -1,11 +1,14 @@
 package org.dromara.db.resource.domain.bo;
 
+import io.github.linpeilie.annotations.AutoMapper;
+import io.github.linpeilie.annotations.AutoMapping;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
+import org.dromara.db.resource.domain.DbDataSource;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -18,6 +21,7 @@ import java.util.Map;
  * @author DataGate
  */
 @Data
+@AutoMapper(target = DbDataSource.class, reverseConvertGenerate = false)
 public class DbDataSourceBo implements Serializable {
 
     @Serial
@@ -49,8 +53,10 @@ public class DbDataSourceBo implements Serializable {
     private String defaultDatabase;
 
     /**
-     * 白名单连接参数（禁止密码类键）
+     * 白名单连接参数（禁止密码类键）。DTO 层只做传输，
+     * 序列化与密钥类键校验由服务层 serializeOptions 统一负责并覆盖写入。
      */
+    @AutoMapping(target = "connectionOptions", ignore = true)
     private Map<String, String> connectionOptions;
 
     @Pattern(regexp = "DISABLE|PREFER|REQUIRE|VERIFY_CA|FULL", message = "非法 TLS 模式")
