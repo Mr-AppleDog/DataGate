@@ -40,6 +40,7 @@ import java.util.Set;
 public class MysqlConnector implements DataSourceConnector {
 
     private final MysqlMetadataProvider metadataProvider = new MysqlMetadataProvider();
+    private final MysqlQueryParser queryParser = new MysqlQueryParser();
 
     @Override
     public DataSourceType type() {
@@ -112,8 +113,8 @@ public class MysqlConnector implements DataSourceConnector {
 
     @Override
     public QueryParser queryParser() {
-        // M2 提供 Druid AST 解析实现；此前失败关闭
-        throw new DbServiceException(DbErrorCode.RESOURCE_CAPABILITY_UNSUPPORTED, "MySQL 查询解析器将在 M2 提供");
+        // M2：Druid AST 解析实现（docs/06 §5、§6.3），失败关闭
+        return queryParser;
     }
 
     @Override
