@@ -494,6 +494,8 @@ public class FlwTaskServiceImpl implements IFlwTaskService {
         if (ObjectUtil.isNull(task)) {
             throw new ServiceException("任务不存在！");
         }
+        // DataGate 安全修复（上游 Issue #44 相邻接口）：对象级授权校验
+        checkTaskOperatorPermission(taskId);
         Instance inst = insService.getById(task.getInstanceId());
         if (ObjectUtil.isNull(inst)) {
             throw new ServiceException("流程实例不存在");
@@ -666,6 +668,8 @@ public class FlwTaskServiceImpl implements IFlwTaskService {
         if (task == null) {
             throw new ServiceException("任务不存在！");
         }
+        // DataGate 安全修复（上游 Issue #44 相邻接口）：对象级授权校验
+        checkTaskOperatorPermission(taskId);
         Instance instance = insService.getById(task.getInstanceId());
         if (ObjectUtil.isNotNull(instance)) {
             BusinessStatusEnum.checkInvalidStatus(instance.getFlowStatus());
@@ -847,6 +851,9 @@ public class FlwTaskServiceImpl implements IFlwTaskService {
             throw new ServiceException("Invalid operation type " + taskOperation);
         }
 
+        // DataGate 安全修复（上游 Issue #44）：对象级授权校验，仅任务办理人/管理员可转办、加签、减签、委派
+        checkTaskOperatorPermission(bo.getTaskId());
+
         FlowParams flowParams = FlowParams.build().message(bo.getMessage());
         if (LoginHelper.isSuperAdmin() || LoginHelper.isTenantAdmin()) {
             flowParams.ignore(true);
@@ -999,5 +1006,25 @@ public class FlwTaskServiceImpl implements IFlwTaskService {
         String message = bo.getMessage();
         flwCommonService.sendMessage(messageType, message, "单据审批提醒", userList);
         return true;
+    }
+
+    /**
+     * DataGate 安全修复（上游 Issue #44）：任务对象级授权校验。
+     * 委派/转办/加签/减签/驳回/终止等操作，要求当前登录人是该任务的办理人，
+     * 或者是超级管理员/租户管理员，防止低权限用户劫持他人审批任务。
+     *
+     * @param taskId 任务id
+     */
+    private void checkTaskOperatorPermission(Long taskId) {
+        if (LoginHelper.isSuperAdmin() || LoginHelper.isTenantAdmin()) {
+            return;
+        }
+        List<User> handlers = FlowEngine.userService().getByAssociateds(List.of(taskId));
+        String currentUserId = LoginHelper.getUserIdStr();
+        boolean isHandler = CollUtil.isNotEmpty(handlers)
+            && handlers.stream().anyMatch(u -> StringUtils.equals(u.getProcessedBy(), currentUserId));
+        if (!isHandler) {
+            throw new ServiceException("权限不足，仅任务办理人可执行该操作!");
+        }
     }
 }

@@ -10,11 +10,21 @@
     <modelVersion>4.0.0</modelVersion>
 
     <modules>
-        <module>ruoyi-demo</module>
         <module>ruoyi-generator</module>
         <module>ruoyi-job</module>
         <module>ruoyi-system</module>
         <module>ruoyi-workflow</module>
+        <!-- DataGate 平台模块（docs/02 第 5 节） -->
+        <module>ruoyi-db-core</module>
+        <module>ruoyi-db-resource</module>
+        <module>ruoyi-db-auth</module>
+        <module>ruoyi-db-workflow</module>
+        <module>ruoyi-db-console</module>
+        <module>ruoyi-db-executor</module>
+        <module>ruoyi-db-audit</module>
+        <module>ruoyi-db-observability</module>
+        <module>ruoyi-db-alert</module>
+        <module>ruoyi-db-connectors</module>
     </modules>
 
     <artifactId>ruoyi-modules</artifactId>

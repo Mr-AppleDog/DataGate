@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>org.dromara</groupId>
+        <artifactId>ruoyi-modules</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>ruoyi-db-connectors</artifactId>
+    <packaging>pom</packaging>
+
+    <description>
+        ruoyi-db-connectors 数据源连接器聚合模块（docs/02 第 7 节 Connector SPI 实现）。
+    </description>
+
+    <modules>
+        <module>connector-mysql</module>
+        <module>connector-postgresql</module>
+        <module>connector-redis</module>
+        <module>connector-aliyun</module>
+    </modules>
+
+</project>

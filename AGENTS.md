@@ -65,16 +65,25 @@ DataGate/
 ├─ ruoyi-extend/          # 上游扩展（监控-admin、snailjob 等）
 ├─ ruoyi-modules/         # 业务模块
 │  ├─ ruoyi-system/       # 上游：用户/部门/岗位/角色/菜单/登录
-│  ├─ ruoyi-workflow/     # 上游：WarmFlow 审批
-│  ├─ ruoyi-job/          # 上游：SnailJob 调度
-│  ├─ ruoyi-generator/    # 上游：代码生成
-│  ├─ ruoyi-demo/         # 上游演示（M0 需关闭/删除演示入口）
-│  └─ ruoyi-db-*/         # 【待新建】本项目模块，见下
+│  ├─ ruoyi-workflow/     # 上游：WarmFlow 审批（M0 已删除请假演示、已修复任务改派对象级授权 Issue #44）
+│  ├─ ruoyi-job/          # 上游：SnailJob 调度（M0 已删除演示任务，客户端默认关闭）
+│  ├─ ruoyi-generator/    # 上游：代码生成（M0 起不再装配进 ruoyi-admin，仅保留源码）
+│  ├─ ruoyi-demo/         # 上游演示（M0 起从构建与装配中移除，仅保留源码）
+│  ├─ ruoyi-db-core/      # 【M0 已建】公共领域类型 + Connector SPI + 统一错误码（无持久化依赖）
+│  ├─ ruoyi-db-resource/  # 【骨架】数据源、资源目录、凭据保险箱、元数据同步（M1 实现）
+│  ├─ ruoyi-db-auth/      # 【骨架】外部资源权限与判定（M2 实现）
+│  ├─ ruoyi-db-workflow/  # 【骨架】权限/导出/变更工单领域流程（M2/M5 实现）
+│  ├─ ruoyi-db-console/   # 【骨架】工作台会话与执行编排（M2 实现）
+│  ├─ ruoyi-db-executor/  # 【骨架】查询/Redis/导出/变更执行网关（M2 实现）
+│  ├─ ruoyi-db-audit/     # 【骨架】专项不可变审计（M1 实现）
+│  ├─ ruoyi-db-observability/ # 【骨架】慢查询采集、指纹、聚合、治理（M4 实现）
+│  ├─ ruoyi-db-alert/     # 【骨架】告警规则、事件、通知通道 SPI（M4 实现）
+│  └─ ruoyi-db-connectors/    # 【骨架】connector-mysql（M2）/connector-postgresql/connector-redis（M3）/connector-aliyun
 ├─ plus-ui/               # 前端（Vue3 + TS + ElementPlus + Vite）
 └─ script/                # bin/docker/sql 脚本
 ```
 
-**待新建的后端模块**（02 文档定义，放在 `ruoyi-modules/` 下，由 ruoyi-admin 统一装配为单体）：
+**DataGate 后端模块**（02 文档定义，`ruoyi-modules/` 下，由 ruoyi-admin 统一装配为单体；M0 已建骨架）：
 
 - `ruoyi-db-core`：公共领域类型 + Connector SPI（无持久化依赖，无 Mapper/Controller）
 - `ruoyi-db-resource`：数据源、资源目录、凭据保险箱、元数据同步
