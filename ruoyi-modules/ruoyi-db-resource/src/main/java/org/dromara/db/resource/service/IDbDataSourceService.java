@@ -1,8 +1,11 @@
 package org.dromara.db.resource.service;
 
+import org.dromara.common.mybatis.core.page.PageQuery;
+import org.dromara.common.mybatis.core.page.TableDataInfo;
 import org.dromara.db.core.domain.ConnectionTestResult;
 import org.dromara.db.resource.domain.DbDataSource;
 import org.dromara.db.resource.domain.bo.DbDataSourceBo;
+import org.dromara.db.resource.domain.vo.DbDataSourceVo;
 
 /**
  * 数据源管理服务（RES-002/003/004，状态机 docs/05 第 4.1 节）
@@ -46,4 +49,14 @@ public interface IDbDataSourceService {
      * 按 ID 查询（不返回任何秘密）
      */
     DbDataSource queryById(Long id);
+
+    /**
+     * 分页查询数据源（不含任何秘密字段）
+     */
+    TableDataInfo<DbDataSourceVo> queryPageList(DbDataSourceBo bo, PageQuery pageQuery);
+
+    /**
+     * 按 ID 查询视图对象（不含任何秘密字段）
+     */
+    DbDataSourceVo queryVoById(Long id);
 }

@@ -2,6 +2,11 @@ package org.dromara.db.resource.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import org.dromara.common.satoken.utils.LoginHelper;
+import org.dromara.db.audit.service.IAuditService;
+import org.dromara.db.core.domain.AuditEventInput;
+import org.dromara.db.core.enums.AuditCategory;
+import org.dromara.db.core.enums.AuditResult;
 import org.dromara.db.core.enums.CredentialPurpose;
 import org.dromara.db.core.enums.CredentialVersionStatus;
 import org.dromara.db.core.error.DbErrorCode;
@@ -10,6 +15,7 @@ import org.dromara.db.core.security.SecretValue;
 import org.dromara.db.resource.credential.CredentialCryptoService;
 import org.dromara.db.resource.domain.DbCredential;
 import org.dromara.db.resource.domain.DbCredentialVersion;
+import org.dromara.db.resource.domain.vo.DbCredentialVo;
 import org.dromara.db.resource.mapper.DbCredentialMapper;
 import org.dromara.db.resource.mapper.DbCredentialVersionMapper;
 import org.dromara.db.resource.service.ICredentialVaultService;
@@ -17,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -32,6 +40,7 @@ public class CredentialVaultServiceImpl implements ICredentialVaultService {
     private final CredentialCryptoService cryptoService;
     private final DbCredentialMapper credentialMapper;
     private final DbCredentialVersionMapper credentialVersionMapper;
+    private final IAuditService auditService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -71,6 +80,14 @@ public class CredentialVaultServiceImpl implements ICredentialVaultService {
 
         credential.setActiveVersionId(version.getId());
         credentialMapper.updateById(credential);
+
+        // CRED-007：凭据创建审计（只记元信息，绝不记秘密）
+        auditService.append(new AuditEventInput(
+            AuditCategory.CREDENTIAL, "CREDENTIAL_CREATE", safeUserId(),
+            Map.of("username", safeUsername()),
+            "CREDENTIAL", String.valueOf(credential.getId()),
+            Map.of("dataSourceId", dataSourceId, "purpose", purpose.name()),
+            AuditResult.SUCCESS, null, null, null, null));
         return credential.getId();
     }
 
@@ -118,6 +135,39 @@ public class CredentialVaultServiceImpl implements ICredentialVaultService {
             return false;
         }
         credential.setStatus("DISABLED");
-        return credentialMapper.updateById(credential) > 0;
+        boolean ok = credentialMapper.updateById(credential) > 0;
+        if (ok) {
+            auditService.append(new AuditEventInput(
+                AuditCategory.CREDENTIAL, "CREDENTIAL_DISABLE", safeUserId(),
+                Map.of("username", safeUsername()),
+                "CREDENTIAL", String.valueOf(credentialId),
+                Map.of("dataSourceId", credential.getDataSourceId(), "purpose", credential.getPurpose()),
+                AuditResult.SUCCESS, null, null, null, null));
+        }
+        return ok;
+    }
+
+    @Override
+    public List<DbCredentialVo> listByDataSource(Long dataSourceId) {
+        return credentialMapper.selectVoList(new LambdaQueryWrapper<DbCredential>()
+            .eq(DbCredential::getDataSourceId, dataSourceId)
+            .orderByAsc(DbCredential::getPurpose));
+    }
+
+    private Long safeUserId() {
+        try {
+            return LoginHelper.getUserId();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String safeUsername() {
+        try {
+            String name = LoginHelper.getUsername();
+            return name == null ? "" : name;
+        } catch (Exception e) {
+            return "";
+        }
     }
 }

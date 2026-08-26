@@ -3,7 +3,9 @@ package org.dromara.db.resource.service;
 import org.dromara.db.core.enums.CredentialPurpose;
 import org.dromara.db.core.security.SecretValue;
 import org.dromara.db.resource.domain.DbCredential;
+import org.dromara.db.resource.domain.vo.DbCredentialVo;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -48,4 +50,9 @@ public interface ICredentialVaultService {
      * 禁用凭据（ CRED-007 审计由实现方写入）
      */
     boolean disable(Long credentialId);
+
+    /**
+     * 查询某数据源的凭据元信息列表（仅非秘密字段，CRED-004）
+     */
+    List<DbCredentialVo> listByDataSource(Long dataSourceId);
 }

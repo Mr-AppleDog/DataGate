@@ -1,8 +1,13 @@
 package org.dromara.db.resource.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.dromara.common.core.utils.MapstructUtils;
+import org.dromara.common.core.utils.StringUtils;
+import org.dromara.common.json.utils.JsonUtils;
+import org.dromara.common.mybatis.core.page.PageQuery;
+import org.dromara.common.mybatis.core.page.TableDataInfo;
 import org.dromara.common.satoken.utils.LoginHelper;
 import org.dromara.db.audit.service.IAuditService;
 import org.dromara.db.core.domain.AuditEventInput;
@@ -21,6 +26,7 @@ import org.dromara.db.core.spi.DataSourceConnector;
 import org.dromara.db.resource.domain.DbCredential;
 import org.dromara.db.resource.domain.DbDataSource;
 import org.dromara.db.resource.domain.bo.DbDataSourceBo;
+import org.dromara.db.resource.domain.vo.DbDataSourceVo;
 import org.dromara.db.resource.mapper.DbDataSourceMapper;
 import org.dromara.db.resource.registry.ConnectorRegistry;
 import org.dromara.db.resource.service.ICredentialVaultService;
@@ -32,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * 数据源管理实现。所有写操作经状态机与 SSRF 校验；连接测试只返回分项能力结果。
@@ -41,6 +48,12 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class DbDataSourceServiceImpl implements IDbDataSourceService {
+
+    /**
+     * 连接参数禁止出现的键（密码/秘密类，docs/06 参数白名单）
+     */
+    private static final Pattern FORBIDDEN_OPTION_KEY =
+        Pattern.compile("(?i)(password|passwd|pwd|secret|token|credential|access[-_]?key|auth)");
 
     private final DbDataSourceMapper dataSourceMapper;
     private final NetworkAddressValidator networkAddressValidator;
@@ -73,6 +86,7 @@ public class DbDataSourceServiceImpl implements IDbDataSourceService {
         }
 
         DbDataSource entity = MapstructUtils.convert(bo, DbDataSource.class);
+        entity.setConnectionOptions(serializeOptions(bo.getConnectionOptions()));
         entity.setStatus(DataSourceStatus.DRAFT.name());
         entity.setPolicyVersion(0L);
         dataSourceMapper.insert(entity);
@@ -106,6 +120,7 @@ public class DbDataSourceServiceImpl implements IDbDataSourceService {
             throw new DbServiceException(DbErrorCode.RESOURCE_SSRF_BLOCKED);
         }
         DbDataSource update = MapstructUtils.convert(bo, DbDataSource.class);
+        update.setConnectionOptions(serializeOptions(bo.getConnectionOptions()));
         update.setStatus(entity.getStatus());
         boolean ok = dataSourceMapper.updateById(update) > 0;
         if (ok) {
@@ -224,6 +239,48 @@ public class DbDataSourceServiceImpl implements IDbDataSourceService {
     @Override
     public DbDataSource queryById(Long id) {
         return dataSourceMapper.selectById(id);
+    }
+
+    @Override
+    public TableDataInfo<DbDataSourceVo> queryPageList(DbDataSourceBo bo, PageQuery pageQuery) {
+        LambdaQueryWrapper<DbDataSource> wrapper = new LambdaQueryWrapper<DbDataSource>()
+            .eq(bo.getEnvironmentId() != null, DbDataSource::getEnvironmentId, bo.getEnvironmentId())
+            .eq(StringUtils.isNotBlank(bo.getType()), DbDataSource::getType, bo.getType())
+            .like(StringUtils.isNotBlank(bo.getName()), DbDataSource::getName, bo.getName())
+            .orderByDesc(DbDataSource::getCreateTime);
+        Page<DbDataSourceVo> page = dataSourceMapper.selectVoPage(pageQuery.build(), wrapper);
+        return TableDataInfo.build(page);
+    }
+
+    @Override
+    public DbDataSourceVo queryVoById(Long id) {
+        DbDataSourceVo vo = dataSourceMapper.selectVoById(id);
+        if (vo == null) {
+            throw new DbServiceException(DbErrorCode.AUTH_RESOURCE_UNDISCOVERABLE);
+        }
+        return vo;
+    }
+
+    /**
+     * 连接参数白名单序列化（docs/06）：拒绝密码/秘密类键，只保留安全参数。
+     */
+    private String serializeOptions(Map<String, String> options) {
+        if (options == null || options.isEmpty()) {
+            return null;
+        }
+        for (Map.Entry<String, String> entry : options.entrySet()) {
+            String key = entry.getKey();
+            if (key == null || key.length() > 64 || FORBIDDEN_OPTION_KEY.matcher(key).find()) {
+                throw new DbServiceException(DbErrorCode.RESOURCE_STATE_CONFLICT,
+                    "连接参数包含被禁止的键");
+            }
+            String value = entry.getValue();
+            if (value != null && value.length() > 512) {
+                throw new DbServiceException(DbErrorCode.RESOURCE_STATE_CONFLICT,
+                    "连接参数值超长");
+            }
+        }
+        return JsonUtils.toJsonString(options);
     }
 
     private String safeUsername() {
