@@ -15,6 +15,7 @@ import me.zhyd.oauth.request.AuthRequest;
 import me.zhyd.oauth.utils.AuthStateUtils;
 import org.dromara.common.core.constant.SystemConstants;
 import org.dromara.common.core.domain.R;
+import org.dromara.common.core.domain.model.InitialPasswordChangeBody;
 import org.dromara.common.core.domain.model.LoginBody;
 import org.dromara.common.core.domain.model.RegisterBody;
 import org.dromara.common.core.domain.model.SocialLoginBody;
@@ -37,6 +38,7 @@ import org.dromara.system.service.ISysClientService;
 import org.dromara.system.service.ISysConfigService;
 import org.dromara.system.service.ISysSocialService;
 import org.dromara.system.service.ISysTenantService;
+import org.dromara.system.service.ISysUserSecurityService;
 import org.dromara.web.domain.vo.LoginTenantVo;
 import org.dromara.web.domain.vo.LoginVo;
 import org.dromara.web.domain.vo.TenantListVo;
@@ -74,6 +76,7 @@ public class AuthController {
     private final ISysTenantService tenantService;
     private final ISysSocialService socialUserService;
     private final ISysClientService clientService;
+    private final ISysUserSecurityService userSecurityService;
     private final ScheduledExecutorService scheduledExecutorService;
 
 
@@ -112,6 +115,24 @@ public class AuthController {
             SseMessageUtils.publishMessage(dto);
         }, 5, TimeUnit.SECONDS);
         return R.ok(loginVo);
+    }
+
+    /**
+     * 首次登录修改初始密码（DataGate M1-01，IAM-002）。
+     *
+     * <p>预认证端点：旧密码 + TOTP（如已绑定）校验通过且账号处于 must_change_pwd
+     * 状态时才允许改密；成功后旧会话全部失效。加密传输（@ApiEncrypt）并限流。</p>
+     */
+    @ApiEncrypt
+    @RateLimiter(time = 60, count = 10, limitType = LimitType.IP)
+    @PostMapping("/changeInitialPassword")
+    public R<Void> changeInitialPassword(@RequestBody String body) {
+        InitialPasswordChangeBody changeBody = JsonUtils.parseObject(body, InitialPasswordChangeBody.class);
+        ValidatorUtils.validate(changeBody);
+        userSecurityService.changeInitialPassword(
+            changeBody.getUsername(), changeBody.getOldPassword(),
+            changeBody.getNewPassword(), changeBody.getMfaCode());
+        return R.ok();
     }
 
     /**

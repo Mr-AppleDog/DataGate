@@ -22,6 +22,7 @@ import org.dromara.system.domain.SysUser;
 import org.dromara.system.domain.bo.SysUserBo;
 import org.dromara.system.mapper.SysUserMapper;
 import org.dromara.system.service.ISysUserService;
+import org.dromara.system.support.PasswordPolicyValidator;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,6 +53,8 @@ public class SysRegisterService {
         if (captchaEnabled) {
             validateCaptcha(tenantId, username, registerBody.getCode(), registerBody.getUuid());
         }
+        // DataGate M1-01：注册入口同样执行密码策略（IAM-003）
+        PasswordPolicyValidator.validate(password, username);
         SysUserBo sysUser = new SysUserBo();
         sysUser.setUserName(username);
         sysUser.setNickName(username);

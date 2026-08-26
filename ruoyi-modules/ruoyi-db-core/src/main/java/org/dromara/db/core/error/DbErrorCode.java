@@ -19,6 +19,7 @@ public enum DbErrorCode {
     IAM_REAUTH_REQUIRED(41002, 401, "当前操作需要 5 分钟内二次认证", false),
     IAM_ACCOUNT_LOCKED(41003, 401, "账号已锁定", false),
     IAM_PASSWORD_POLICY_VIOLATION(41004, 400, "密码不符合复杂度策略", false),
+    IAM_PASSWORD_CHANGE_REQUIRED(41005, 403, "首次登录须修改初始密码", false),
 
     // ================= AUTH 42000-42999 =================
     AUTH_RESOURCE_DENIED(42001, 403, "当前操作未获得资源授权", false),

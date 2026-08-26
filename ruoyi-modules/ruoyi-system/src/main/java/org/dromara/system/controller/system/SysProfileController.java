@@ -3,7 +3,6 @@ package org.dromara.system.controller.system;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.crypto.digest.BCrypt;
 import lombok.RequiredArgsConstructor;
 import org.dromara.common.core.domain.R;
 import org.dromara.common.core.utils.StringUtils;
@@ -22,6 +21,7 @@ import org.dromara.system.domain.vo.ProfileUserVo;
 import org.dromara.system.domain.vo.SysOssVo;
 import org.dromara.system.domain.vo.SysUserVo;
 import org.dromara.system.service.ISysOssService;
+import org.dromara.system.service.ISysUserSecurityService;
 import org.dromara.system.service.ISysUserService;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
@@ -43,6 +43,7 @@ public class SysProfileController extends BaseController {
 
     private final ISysUserService userService;
     private final ISysOssService ossService;
+    private final ISysUserSecurityService userSecurityService;
 
     /**
      * 个人信息
@@ -91,19 +92,9 @@ public class SysProfileController extends BaseController {
     @Log(title = "个人信息", businessType = BusinessType.UPDATE)
     @PutMapping("/updatePwd")
     public R<Void> updatePwd(@Validated @RequestBody SysUserPasswordBo bo) {
-        SysUserVo user = userService.selectUserById(LoginHelper.getUserId());
-        String password = user.getPassword();
-        if (!BCrypt.checkpw(bo.getOldPassword(), password)) {
-            return R.fail("修改密码失败，旧密码错误");
-        }
-        if (BCrypt.checkpw(bo.getNewPassword(), password)) {
-            return R.fail("新密码不能与旧密码相同");
-        }
-        int rows = DataPermissionHelper.ignore(() -> userService.resetUserPwd(user.getUserId(), BCrypt.hashpw(bo.getNewPassword())));
-        if (rows > 0) {
-            return R.ok();
-        }
-        return R.fail("修改密码异常，请联系管理员");
+        // DataGate M1-01：旧密码校验 + IAM-003 密码策略 + 清除首次改密标记（服务层事务，失败关闭）
+        userSecurityService.changeOwnPassword(LoginHelper.getUserId(), bo.getOldPassword(), bo.getNewPassword());
+        return R.ok();
     }
 
     /**

@@ -4,7 +4,6 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.hutool.core.lang.tree.Tree;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.crypto.digest.BCrypt;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +55,7 @@ public class SysUserController extends BaseController {
     private final ISysPostService postService;
     private final ISysDeptService deptService;
     private final ISysTenantService tenantService;
+    private final ISysUserSecurityService userSecurityService;
 
     /**
      * 获取用户列表
@@ -173,8 +173,9 @@ public class SysUserController extends BaseController {
                 return R.fail("当前租户下用户名额不足，请联系管理员");
             }
         }
-        user.setPassword(BCrypt.hashpw(user.getPassword()));
-        return toAjax(userService.insertUser(user));
+        // DataGate M1-01：IAM-003 密码策略校验 + IAM-002 标记首次改密（服务层同一事务，失败关闭）
+        userSecurityService.createUserWithInitialPassword(user);
+        return toAjax(1);
     }
 
     /**
@@ -237,8 +238,9 @@ public class SysUserController extends BaseController {
     public R<Void> resetPwd(@RequestBody SysUserBo user) {
         userService.checkUserAllowed(user.getUserId());
         userService.checkUserDataScope(user.getUserId());
-        user.setPassword(BCrypt.hashpw(user.getPassword()));
-        return toAjax(userService.resetUserPwd(user.getUserId(), user.getPassword()));
+        // DataGate M1-01：IAM-003 策略校验 + IAM-002 重置后强制改密 + 旧会话失效
+        userSecurityService.resetPasswordByAdmin(user);
+        return toAjax(1);
     }
 
     /**

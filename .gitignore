@@ -51,6 +51,10 @@ nbdist/
 
 .flattened-pom.xml
 
+# DataGate 验收临时目录（含运行时 secrets/快照，不进 Git）
+target-acceptance/
+logs/
+
 # DataGate：KEK/秘密文件一律不进 Git（CRED-003）
 *.kek
 **/kek*.txt

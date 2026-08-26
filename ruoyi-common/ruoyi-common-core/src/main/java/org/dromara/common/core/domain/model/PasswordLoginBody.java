@@ -24,8 +24,9 @@ public class PasswordLoginBody extends LoginBody {
     /**
      * 用户密码
      */
+    // DataGate M1-01：上限与密码策略（IAM-003，12-64 位）对齐，避免策略允许的强密码无法登录
     @NotBlank(message = "{user.password.not.blank}")
-    @Length(min = 5, max = 30, message = "{user.password.length.valid}")
+    @Length(min = 5, max = 64, message = "{user.password.length.valid}")
 //    @Pattern(regexp = RegexConstants.PASSWORD, message = "{user.password.format.valid}")
     private String password;
 

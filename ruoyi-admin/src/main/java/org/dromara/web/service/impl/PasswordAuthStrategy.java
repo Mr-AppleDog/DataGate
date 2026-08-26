@@ -28,6 +28,7 @@ import org.dromara.system.domain.SysUser;
 import org.dromara.system.domain.vo.SysClientVo;
 import org.dromara.system.domain.vo.SysUserVo;
 import org.dromara.system.mapper.SysUserMapper;
+import org.dromara.system.service.ISysUserSecurityService;
 import org.dromara.system.service.ISysUserTotpService;
 import org.dromara.web.domain.vo.LoginVo;
 import org.dromara.web.service.IAuthStrategy;
@@ -48,6 +49,7 @@ public class PasswordAuthStrategy implements IAuthStrategy {
     private final SysLoginService loginService;
     private final SysUserMapper userMapper;
     private final ISysUserTotpService totpService;
+    private final ISysUserSecurityService userSecurityService;
 
     @Override
     public LoginVo login(String body, SysClientVo client) {
@@ -69,6 +71,8 @@ public class PasswordAuthStrategy implements IAuthStrategy {
             loginService.checkLogin(LoginType.PASSWORD, tenantId, username, () -> !BCrypt.checkpw(password, user.getPassword()));
             // DataGate M1-01：密码通过后强制 TOTP 校验（IAM-005，已绑定用户必须提供有效验证码/恢复码）
             totpService.assertLoginAllowed(user.getUserId(), loginBody.getMfaCode());
+            // DataGate M1-01：首次登录强制改密（IAM-002）——命中则拒绝发 token，只能走预认证改密端点
+            userSecurityService.assertPasswordChangeNotRequired(user.getUserId());
             // 此处可根据登录用户的数据不同 自行创建 loginUser
             return loginService.buildLoginUser(user);
         });

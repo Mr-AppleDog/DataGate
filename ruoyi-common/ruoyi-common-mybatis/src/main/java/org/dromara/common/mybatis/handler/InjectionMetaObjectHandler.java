@@ -81,9 +81,12 @@ public class InjectionMetaObjectHandler implements MetaObjectHandler {
                 baseEntity.setUpdateTime(current);
 
                 // 获取当前登录用户的ID，并填充更新人信息
-                Long userId = LoginHelper.getUserId();
-                if (ObjectUtil.isNotNull(userId)) {
-                    baseEntity.setUpdateBy(userId);
+                // 与 insertFill 保持一致：用 getLoginUser() 安全获取，预认证上下文（如
+                // 首次改密 /auth/changeInitialPassword）无登录会话时返回 null，填默认值，
+                // 而非抛 NotLoginException 导致整个业务链路 401（DataGate M1-01，IAM-002）。
+                LoginUser loginUser = getLoginUser();
+                if (ObjectUtil.isNotNull(loginUser)) {
+                    baseEntity.setUpdateBy(loginUser.getUserId());
                 } else {
                     baseEntity.setUpdateBy(DEFAULT_USER_ID);
                 }
