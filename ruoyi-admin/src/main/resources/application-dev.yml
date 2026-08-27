@@ -126,3 +126,11 @@ datagate:
     credential:
       # 开发环境本地 KEK 文件（仅开发用，生产必须为只读 Secret 挂载；本路径不得进 Git）
       kek-file: ${DATAGATE_KEK_FILE:C:\\Users\\cxy784853792\\.datagate\\kek.txt}
+
+--- # 关闭验证码（开发冒烟用；生产不得关闭）
+captcha:
+  enable: false
+
+--- # 关闭请求体加密（开发冒烟用；生产不得关闭）
+api-decrypt:
+  enabled: false
