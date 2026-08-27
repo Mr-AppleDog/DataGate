@@ -6,7 +6,6 @@ import org.dromara.db.core.enums.ConnectorCapability;
 import org.dromara.db.core.enums.DataSourceType;
 import org.dromara.db.core.enums.TlsMode;
 import org.dromara.db.core.error.DbErrorCode;
-import org.dromara.db.core.error.DbServiceException;
 import org.dromara.db.core.security.SecretValue;
 import org.dromara.db.core.spi.DataSourceConnector;
 import org.dromara.db.core.spi.MetadataProvider;
@@ -41,6 +40,7 @@ public class MysqlConnector implements DataSourceConnector {
 
     private final MysqlMetadataProvider metadataProvider = new MysqlMetadataProvider();
     private final MysqlQueryParser queryParser = new MysqlQueryParser();
+    private final MysqlQueryExecutor queryExecutor = new MysqlQueryExecutor(queryParser);
 
     @Override
     public DataSourceType type() {
@@ -119,8 +119,8 @@ public class MysqlConnector implements DataSourceConnector {
 
     @Override
     public QueryExecutor queryExecutor() {
-        // M2 提供受控执行实现；此前失败关闭
-        throw new DbServiceException(DbErrorCode.RESOURCE_CAPABILITY_UNSUPPORTED, "MySQL 执行器将在 M2 提供");
+        // M2：HikariCP 受控流式执行（docs/06 §4、§6.4、§11），失败关闭 + 纵深防御再解析
+        return queryExecutor;
     }
 
     @Override

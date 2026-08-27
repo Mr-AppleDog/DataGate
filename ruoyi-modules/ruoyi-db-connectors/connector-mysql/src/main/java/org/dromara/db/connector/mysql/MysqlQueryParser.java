@@ -72,9 +72,10 @@ import java.util.Set;
  *
  * <p><b>动作分类</b>（docs/06 §5.2、§6.3）映射到冻结的 {@link DbAction}：
  * READ→QUERY、EXPLAIN→EXPLAIN、EXPORT→EXPORT、DML→CHANGE_DML、DDL→CHANGE_DDL。
- * 由于 {@link DbAction} 暂无 ADMIN/CODE 枚举，所有强制拒绝的管理/代码类语句
- * （GRANT/REVOKE/KILL/SET/CALL/USER/PURGE 等）归为 readonly=false 且 requiredAction=CHANGE_DDL
- * （平台最高风险变更动作，普通用户不可执行）；此为待集成者决策的契约缺口，见交付报告。</p>
+ * 管理/代码类强制拒绝语句经 ADR-007 修订映射到 {@link DbAction#ADMIN} / {@link DbAction#CODE}：
+ * GRANT/REVOKE/KILL/SET GLOBAL/SET PERSIST/RESET MASTER/PURGE/CREATE-DROP-ALTER USER 等→ADMIN；
+ * CALL/DO/EXECUTE(prepared)/存储过程/UDF 执行等→CODE。两者对普通用户默认不可授权
+ * （无 grant 路径=默认拒绝）。</p>
  *
  * @author DataGate
  */
@@ -290,13 +291,13 @@ public class MysqlQueryParser implements QueryParser {
         if (stmt instanceof MySqlLoadDataInFileStatement || stmt instanceof MySqlLoadXmlStatement) {
             return new Classification("LOAD", DbAction.CHANGE_DML, false);
         }
-        // CALL / EXECUTE(prepared)：CODE 类，P0 禁止
+        // CALL / EXECUTE(prepared)：CODE 类，P0 禁止（docs/06 §5.2、ADR-007 修订）
         if (stmt instanceof SQLCallStatement || stmt instanceof MySqlExecuteStatement) {
-            return new Classification("CALL", DbAction.CHANGE_DDL, false);
+            return new Classification("CALL", DbAction.CODE, false);
         }
-        // SET：客户端不得修改会话关键参数（docs/06 §6.4），统一归为管理动作
+        // SET：客户端不得修改会话关键参数（docs/06 §6.4），统一归为管理动作 ADMIN
         if (stmt instanceof SQLSetStatement) {
-            return new Classification("SET", DbAction.CHANGE_DDL, false);
+            return new Classification("SET", DbAction.ADMIN, false);
         }
         // SHOW 安全子集（§6.2）：库/表/列/索引/建表 DDL/表状态/建库 DDL → METADATA_READ 只读；
         // 其余 SHOW（PROCESSLIST/GRANTS/MASTER STATUS/VARIABLES/STATUS/PLUGINS/PRIVILEGES 等）保守 readonly=false。
@@ -304,21 +305,21 @@ public class MysqlQueryParser implements QueryParser {
         if (stmt instanceof SQLShowStatement) {
             return classifyShow(stmt);
         }
-        // 管理动作（§6.3 强制拒绝项）：USER / GRANT / REVOKE / KILL / LOCK / UNLOCK / FLUSH / BINLOG
+        // 管理动作（§6.3 强制拒绝项）：USER / GRANT / REVOKE / KILL / LOCK / UNLOCK / FLUSH / BINLOG → ADMIN
         if (stmt instanceof MySqlCreateUserStatement || stmt instanceof MySqlAlterUserStatement
             || stmt instanceof SQLGrantStatement || stmt instanceof SQLRevokeStatement
             || stmt instanceof MySqlKillStatement || stmt instanceof MySqlLockTableStatement
             || stmt instanceof MySqlUnlockTablesStatement || stmt instanceof MySqlFlushStatement
             || stmt instanceof MySqlBinlogStatement) {
-            return new Classification(adminVerb(stmt), DbAction.CHANGE_DDL, false);
+            return new Classification(adminVerb(stmt), DbAction.ADMIN, false);
         }
-        // RESET / PURGE：Druid 解析为通用 SQLResetStatement / SQLPurgeLogsStatement，归管理动作
+        // RESET / PURGE：Druid 解析为通用 SQLResetStatement / SQLPurgeLogsStatement，归管理动作 ADMIN
         String cn = stmt.getClass().getSimpleName();
         if (cn.contains("Reset")) {
-            return new Classification("RESET", DbAction.CHANGE_DDL, false);
+            return new Classification("RESET", DbAction.ADMIN, false);
         }
         if (cn.contains("Purge")) {
-            return new Classification("PURGE", DbAction.CHANGE_DDL, false);
+            return new Classification("PURGE", DbAction.ADMIN, false);
         }
         // DDL 家族：CREATE / ALTER / DROP / TRUNCATE / RENAME（含临时表创建、写入型对象）
         String verb = ddlVerb(stmt);

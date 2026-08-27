@@ -206,18 +206,19 @@ class MysqlQueryParserTest {
             Arguments.of("DROP VIEW v", DbAction.CHANGE_DDL),
             Arguments.of("CREATE INDEX i ON t(c)", DbAction.CHANGE_DDL),
             Arguments.of("CREATE TEMPORARY TABLE tmp AS SELECT * FROM t", DbAction.CHANGE_DDL),
-            // 管理动作（DbAction 无 ADMIN/CODE，统一 CHANGE_DDL，待集成者决策）
-            Arguments.of("GRANT SELECT ON db.t TO 'u'@'%'", DbAction.CHANGE_DDL),
-            Arguments.of("REVOKE SELECT ON db.t FROM 'u'@'%'", DbAction.CHANGE_DDL),
-            Arguments.of("CREATE USER u IDENTIFIED BY 'p'", DbAction.CHANGE_DDL),
-            Arguments.of("KILL 123", DbAction.CHANGE_DDL),
-            Arguments.of("LOCK TABLES t WRITE", DbAction.CHANGE_DDL),
-            Arguments.of("UNLOCK TABLES", DbAction.CHANGE_DDL),
-            Arguments.of("FLUSH TABLES", DbAction.CHANGE_DDL),
-            Arguments.of("RESET MASTER", DbAction.CHANGE_DDL),
-            Arguments.of("PURGE BINARY LOGS TO 'mysql-bin.1'", DbAction.CHANGE_DDL),
-            Arguments.of("SET GLOBAL max_connections = 1", DbAction.CHANGE_DDL),
-            Arguments.of("CALL p()", DbAction.CHANGE_DDL)
+            // 管理动作 -> ADMIN（对普通用户默认不可授权，ADR-007 修订）
+            Arguments.of("GRANT SELECT ON db.t TO 'u'@'%'", DbAction.ADMIN),
+            Arguments.of("REVOKE SELECT ON db.t FROM 'u'@'%'", DbAction.ADMIN),
+            Arguments.of("CREATE USER u IDENTIFIED BY 'p'", DbAction.ADMIN),
+            Arguments.of("KILL 123", DbAction.ADMIN),
+            Arguments.of("LOCK TABLES t WRITE", DbAction.ADMIN),
+            Arguments.of("UNLOCK TABLES", DbAction.ADMIN),
+            Arguments.of("FLUSH TABLES", DbAction.ADMIN),
+            Arguments.of("RESET MASTER", DbAction.ADMIN),
+            Arguments.of("PURGE BINARY LOGS TO 'mysql-bin.1'", DbAction.ADMIN),
+            Arguments.of("SET GLOBAL max_connections = 1", DbAction.ADMIN),
+            // 代码执行类 -> CODE（P0 禁止，ADR-007 修订）
+            Arguments.of("CALL p()", DbAction.CODE)
         );
     }
 
