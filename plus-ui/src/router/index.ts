@@ -83,6 +83,26 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: { title: '个人中心', icon: 'user' }
       }
     ]
+  },
+  {
+    path: '/db',
+    component: Layout,
+    redirect: '/db/console',
+    meta: { title: '数据库治理', icon: 'server' },
+    children: [
+      {
+        path: 'console',
+        component: () => import('@/views/db/console/index.vue'),
+        name: 'DbConsole',
+        meta: { title: '查询控制台', icon: 'search' }
+      },
+      {
+        path: 'workflow',
+        component: () => import('@/views/db/workflow/index.vue'),
+        name: 'DbWorkflow',
+        meta: { title: '权限审批', icon: 'lock' }
+      }
+    ]
   }
 ];
 
