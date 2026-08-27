@@ -21,6 +21,36 @@
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-db-core</artifactId>
         </dependency>
+
+        <!-- 执行网关编排所需：数据源/凭据/连接器注册表 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-resource</artifactId>
+        </dependency>
+
+        <!-- 授权判定 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-auth</artifactId>
+        </dependency>
+
+        <!-- 查询审计写入 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-audit</artifactId>
+        </dependency>
+
+        <!-- 操作人上下文（审计 actor 快照） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-common-satoken</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>
