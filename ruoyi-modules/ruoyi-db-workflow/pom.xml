@@ -21,9 +21,21 @@
             <artifactId>ruoyi-db-core</artifactId>
         </dependency>
 
+        <!-- 授权写侧（审批通过生成 Grant） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-auth</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-common-mybatis</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
