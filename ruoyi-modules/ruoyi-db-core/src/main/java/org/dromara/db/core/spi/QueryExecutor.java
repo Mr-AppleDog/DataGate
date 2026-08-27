@@ -1,5 +1,6 @@
 package org.dromara.db.core.spi;
 
+import org.dromara.db.core.domain.ConnectionContext;
 import org.dromara.db.core.domain.ExecutionPlan;
 import org.dromara.db.core.domain.ExecutionResultMeta;
 
@@ -29,10 +30,12 @@ public interface QueryExecutor {
      * </ul>
      *
      * @param plan     不可变、服务端构造、已授权的执行计划
+     * @param ctx      连接上下文：ConnectionProfile + SecretValue + 原始可执行语句
+     *                  （由编排器解析组装，执行后销毁 SecretValue；解决 ADR-008 缺口 1/2）
      * @param callback 行回调；列头先于行，值已脱敏；返回 false 终止读取
      * @return 执行元数据（含 executionNo、状态、耗时、行/字节、截断、错误码）
      */
-    ExecutionResultMeta execute(ExecutionPlan plan, RowCallback callback);
+    ExecutionResultMeta execute(ExecutionPlan plan, ConnectionContext ctx, RowCallback callback);
 
     /**
      * 取消正在运行的执行。取消幂等；已结束的执行返回最终状态。

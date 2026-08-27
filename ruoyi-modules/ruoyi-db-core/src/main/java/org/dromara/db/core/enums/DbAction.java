@@ -65,6 +65,17 @@ public enum DbAction {
      */
     CHANGE_DDL,
 
+    /**
+     * 管理类语句（GRANT/REVOKE/KILL/SET GLOBAL/SET PERSIST/VACUUM FULL/RESET MASTER/PURGE 等，docs/06 §5.2）。
+     * 对普通用户默认不可授权（无 grant 路径=默认拒绝）。
+     */
+    ADMIN,
+
+    /**
+     * 代码执行类（CALL/DO/存储过程/函数执行/匿名块，docs/06 §5.2）。P0 普通用户禁止。
+     */
+    CODE,
+
     // ===== Redis 动作 =====
     /**
      * 按授权前缀浏览 Key

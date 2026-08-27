@@ -34,3 +34,15 @@
 
 - 多资源查询的 decisionId 聚合策略（逐资源 decide 后如何收敛为单个 plan-level decisionId）由 M2-core orchestrator 决定，本契约只规定单资源 `decide` 原子语义。
 - `RowCallback.onRow` 的批量化（JDBC fetchSize 内部缓冲）为实现细节，不影响契约。
+
+## 修订记录（执行器切片启动前，2026-09）
+
+执行器切片启动时发现两处冻结面缺口（详见 ADR-008），经决策修订如下，均为加法/签名扩展，不改既有枚举语义：
+
+1. **`QueryExecutor.execute` 签名扩展为 `execute(ExecutionPlan, ConnectionContext, RowCallback)`**。
+   新增 `ConnectionContext`（ConnectionProfile + SecretValue + originalStatement），由 db-executor 编排器在执行前解析数据源/凭据/原始语句后组装，执行后销毁 SecretValue。
+   解决缺口 1（凭据）与缺口 2（可执行语句）；`ExecutionPlan` 保持冻结（只承载授权信封）。
+2. **`DbAction` 新增 `ADMIN` / `CODE`**（对齐 docs/06 §5.2）。
+   管理/代码类强制拒绝语句（GRANT/KILL/SET GLOBAL/VACUUM FULL/CALL/DO 等）由原保守映射 `CHANGE_DDL` 改为 `ADMIN`/`CODE`，对普通用户默认不可授权。各连接器 rebase 后重映射。
+
+修订影响：`execute` 签名变更使依赖该方法的实现（m2-mysql 的 `MysqlQueryExecutor`）须按新签名重做；解析器切片（parse-only）不受影响，干净 rebase。`8ad15dbe` agent 在 m2-mysql worktree 内擅自采用的 `ExecutionContextResolver` 端口方案（ADR-008 旧稿）**弃用**，相关越权提交（`749aad5`/`9b623a7`/`a392107`/`ff0b30f`）reset 丢弃，executor 逻辑留作 dangling 参考重做。
