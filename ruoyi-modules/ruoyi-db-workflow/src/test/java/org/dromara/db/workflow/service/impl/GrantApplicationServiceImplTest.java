@@ -12,6 +12,7 @@ import org.dromara.db.workflow.domain.bo.GrantApproveBo;
 import org.dromara.db.workflow.mapper.FlowTaskQueryMapper;
 import org.dromara.db.workflow.repository.GrantApplicationRepository;
 import org.dromara.db.workflow.service.GrantApprovalCallbackService;
+import org.dromara.workflow.service.IFlwTaskService;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -34,7 +35,7 @@ class GrantApplicationServiceImplTest {
                                                       WorkflowService wf,
                                                       FlowTaskQueryMapper taskMapper,
                                                       GrantApprovalCallbackService cb) {
-        return new GrantApplicationServiceImpl(repo, wf, taskMapper, cb);
+        return new GrantApplicationServiceImpl(repo, wf, taskMapper, cb, org.mockito.Mockito.mock(IFlwTaskService.class));
     }
 
     private GrantApplyBo applyBo(Long approverId) {

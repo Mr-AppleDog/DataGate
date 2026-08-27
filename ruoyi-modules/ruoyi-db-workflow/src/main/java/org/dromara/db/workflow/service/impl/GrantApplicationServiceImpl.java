@@ -18,6 +18,8 @@ import org.dromara.db.workflow.mapper.FlowTaskQueryMapper;
 import org.dromara.db.workflow.repository.GrantApplicationRepository;
 import org.dromara.db.workflow.service.GrantApplicationService;
 import org.dromara.db.workflow.service.GrantApprovalCallbackService;
+import org.dromara.workflow.domain.bo.FlowTerminationBo;
+import org.dromara.workflow.service.IFlwTaskService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,11 +30,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 查询权限申请单服务实现（M2-02）。
+ * 查询权限申请单服务实现（M2-02 + M2 收尾）。
  *
  * <p>apply：insert 申请单 → startCompleteTask（启动 + 办理申请人节点提交）→ 回填 flowInstanceId。
  * approve：completeTask 办理审批节点 → 同步触发 finish → ProcessEvent(FINISH) → 监听器 onApproval 生成 Grant。
- * reject/cancel：deleteInstance + 标记状态 + 主动 onRejection（不生成 Grant）。</p>
+ * reject/cancel：terminationTask 终止流程（保留 flow_his_task 拒绝/撤销轨迹）→ 监听器 ProcessEvent(TERMINATION)
+ *   → onRejection（不生成 Grant）。cancel 先标记 CANCELED，监听器见非 PENDING 跳过。</p>
  *
  * @author DataGate
  */
@@ -45,6 +48,7 @@ public class GrantApplicationServiceImpl implements GrantApplicationService {
     private final WorkflowService workflowService;
     private final FlowTaskQueryMapper flowTaskQueryMapper;
     private final GrantApprovalCallbackService callbackService;
+    private final IFlwTaskService flwTaskService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -111,14 +115,7 @@ public class GrantApplicationServiceImpl implements GrantApplicationService {
         if (!approverId.equals(app.getApproverId())) {
             throw new ServiceException("非指定审批人，无权审批");
         }
-        Long instanceId = workflowService.getInstanceIdByBusinessId(String.valueOf(app.getId()));
-        if (instanceId == null) {
-            throw new ServiceException("审批流程实例不存在");
-        }
-        Long taskId = flowTaskQueryMapper.selectTaskId(instanceId, DbWorkflowConstants.NODE_APPROVE);
-        if (taskId == null) {
-            throw new ServiceException("当前无待审批任务，可能已被办理或流程已结束");
-        }
+        Long taskId = requireApproveTask(app.getId());
         // 办理审批节点（不忽略权限，WarmFlow 校验 handler 在 permissionList 内）
         CompleteTaskDTO dto = new CompleteTaskDTO();
         dto.setTaskId(taskId);
@@ -129,7 +126,6 @@ public class GrantApplicationServiceImpl implements GrantApplicationService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void reject(GrantApproveBo bo) {
         GrantApplication app = requirePending(bo.getApplicationId());
         Long approverId = LoginHelper.getUserId();
@@ -139,10 +135,13 @@ public class GrantApplicationServiceImpl implements GrantApplicationService {
         if (!approverId.equals(app.getApproverId())) {
             throw new ServiceException("非指定审批人，无权操作");
         }
-        // 终止/删除流程实例（deleteInstance 不发布 ProcessEvent，故主动回调）
-        workflowService.deleteInstance(List.of(String.valueOf(app.getId())));
-        applicationRepository.updateStatus(app.getId(), DbWorkflowConstants.STATUS_REJECTED);
-        callbackService.onRejection(app.getId(), approverId, bo.getMessage());
+        Long taskId = requireApproveTask(app.getId());
+        // 终止流程（保留 flow_his_task 拒绝轨迹，docs/03 §11 reject→REJECTED）
+        FlowTerminationBo tbo = new FlowTerminationBo();
+        tbo.setTaskId(taskId);
+        tbo.setComment(bo.getMessage());
+        flwTaskService.terminationTask(tbo);
+        // terminationTask 同栈触发 finish → ProcessEvent(TERMINATION) → 监听器 onRejection（updateStatus REJECTED + 不生成 Grant）
     }
 
     @Override
@@ -153,9 +152,13 @@ public class GrantApplicationServiceImpl implements GrantApplicationService {
         if (!userId.equals(app.getApplicantId())) {
             throw new ServiceException("仅申请人可撤销");
         }
-        workflowService.deleteInstance(List.of(String.valueOf(app.getId())));
+        Long taskId = requireApproveTask(app.getId());
+        // 先标记 CANCELED；监听器 onRejection 见非 PENDING 跳过（不覆盖、不生成 Grant）
         applicationRepository.updateStatus(app.getId(), DbWorkflowConstants.STATUS_CANCELED);
-        callbackService.onRejection(app.getId(), userId, "申请人撤销");
+        FlowTerminationBo tbo = new FlowTerminationBo();
+        tbo.setTaskId(taskId);
+        tbo.setComment("申请人撤销" + (bo.getMessage() == null ? "" : "：" + bo.getMessage()));
+        flwTaskService.terminationTask(tbo);
     }
 
     @Override
@@ -178,6 +181,21 @@ public class GrantApplicationServiceImpl implements GrantApplicationService {
             throw new ServiceException("申请单已处理，当前状态：" + app.getStatus());
         }
         return app;
+    }
+
+    /**
+     * 查当前审批节点的待办 taskId（按 businessId→instanceId→approve 节点）。
+     */
+    private Long requireApproveTask(Long applicationId) {
+        Long instanceId = workflowService.getInstanceIdByBusinessId(String.valueOf(applicationId));
+        if (instanceId == null) {
+            throw new ServiceException("审批流程实例不存在");
+        }
+        Long taskId = flowTaskQueryMapper.selectTaskId(instanceId, DbWorkflowConstants.NODE_APPROVE);
+        if (taskId == null) {
+            throw new ServiceException("当前无待审批任务，可能已被办理或流程已结束");
+        }
+        return taskId;
     }
 
     private static GrantApplicationVo toVo(GrantApplication a) {
