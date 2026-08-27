@@ -42,9 +42,20 @@
             <artifactId>ruoyi-common-satoken</artifactId>
         </dependency>
 
+        <!-- 授权引擎端口：ResourceHierarchyResolver 实现（祖先继承，M2-02 接通） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-auth</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
