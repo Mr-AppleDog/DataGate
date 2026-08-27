@@ -21,9 +21,33 @@
             <artifactId>ruoyi-db-core</artifactId>
         </dependency>
 
+        <!-- 执行网关 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-executor</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-common-mybatis</artifactId>
+        </dependency>
+
+        <!-- REST 控制器基座 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-common-web</artifactId>
+        </dependency>
+
+        <!-- 操作人身份与权限注解 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-common-satoken</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
