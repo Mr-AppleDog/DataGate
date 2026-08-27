@@ -20,7 +20,7 @@ import org.dromara.db.core.spi.RowCallback;
 import org.dromara.db.core.domain.RowHeader;
 import org.dromara.db.core.domain.RowCell;
 import org.dromara.db.executor.domain.QueryExecutionRequest;
-import org.dromara.db.executor.support.ResourcePathResolver;
+import org.dromara.db.core.spi.ResourcePathResolver;
 import org.dromara.db.executor.support.StubDataSourceConnector;
 import org.dromara.db.resource.domain.DbCredential;
 import org.dromara.db.resource.domain.DbDataSource;
