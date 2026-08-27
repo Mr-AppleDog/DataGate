@@ -6,6 +6,8 @@ import org.dromara.db.core.enums.DbAction;
 import org.dromara.db.core.enums.GrantEffect;
 import org.dromara.db.core.enums.GrantSourceType;
 import org.dromara.db.core.enums.SubjectType;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.dromara.common.mybatis.core.page.PageQuery;
 import org.dromara.db.workflow.domain.GrantApplication;
 import org.dromara.db.workflow.repository.GrantApplicationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -108,6 +110,20 @@ class GrantApprovalCallbackServiceImplTest {
             a.setGrantId(grantId);
             a.setApproverId(approverId);
             return true;
+        }
+        @Override public boolean updateFlowInstanceId(Long id, Long flowInstanceId) { return true; }
+        @Override public boolean updateStatus(Long id, String status) {
+            GrantApplication a = byId.get(id);
+            if (a != null) a.setStatus(status);
+            return true;
+        }
+        @Override public Page<GrantApplication> page(Long applicantId, PageQuery pageQuery) {
+            Page<GrantApplication> p = new Page<>();
+            java.util.List<GrantApplication> all = new java.util.ArrayList<>(byId.values());
+            if (applicantId != null) all.removeIf(a -> !applicantId.equals(a.getApplicantId()));
+            p.setRecords(all);
+            p.setTotal(all.size());
+            return p;
         }
     }
 

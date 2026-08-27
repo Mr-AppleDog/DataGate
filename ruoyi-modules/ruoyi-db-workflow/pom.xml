@@ -32,9 +32,26 @@
             <artifactId>ruoyi-common-mybatis</artifactId>
         </dependency>
 
+        <!-- Sa-Token：LoginHelper 取当前申请人/审批人（审批人不能自批，docs/03 §13 #9） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-common-satoken</artifactId>
+        </dependency>
+
+        <!-- 通用工作流服务（起流程/办理，org.dromara.common.core.service.WorkflowService） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-common-core</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
