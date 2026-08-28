@@ -1,0 +1,53 @@
+# DataGate 试用/开发部署（docs/09 §2.1，host network 复用 VM 现有 PG/Redis/MinIO）
+# 生产：至少 2 应用节点 + LB + PG主备 + Valkey 主从（docs/09 §2.2），本 compose 为单节点试用。
+services:
+  datagate-admin:
+    image: localhost:5000/datagate-admin:latest
+    container_name: datagate-admin
+    environment:
+      TZ: Asia/Shanghai
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: "-Xmx1g -Xms512m"
+    volumes:
+      # KEK 只读挂载（docs/08 §6.1，生产经 Secret 挂载）
+      - /docker/datagate/kek:/datagate/kek:ro
+      # 加密对象存储（M5 导出归档）
+      - /docker/datagate/objects:/datagate/objects
+      # 日志
+      - /docker/datagate/logs:/ruoyi/server/logs
+    network_mode: "host"
+    restart: unless-stopped
+
+  datagate-ui:
+    image: localhost:5000/datagate-ui:latest
+    container_name: datagate-ui
+    environment:
+      TZ: Asia/Shanghai
+    network_mode: "host"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: datagate-prometheus
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml
+    network_mode: "host"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: datagate-grafana
+    environment:
+      TZ: Asia/Shanghai
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: mrlu
+      GF_INSTALLATION: "true"
+    volumes:
+      - ../monitoring/grafana:/etc/grafana/provisioning/dashboards
+      - /docker/datagate/grafana:/var/lib/grafana
+    network_mode: "host"
+    restart: unless-stopped

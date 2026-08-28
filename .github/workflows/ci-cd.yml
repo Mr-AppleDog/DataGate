@@ -1,0 +1,74 @@
+name: DataGate CI/CD
+
+# 推 main 触发：构建后端+前端镜像 → 推本地 registry → docker-compose 部署到 VM → 冒烟
+# 参考 DocLoom（self-hosted runner）。GitHub-hosted 的单测/SBOM 见 ci.yml。
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deploy:
+    runs-on: self-hosted
+    env:
+      REGISTRY: localhost:5000
+      BACKEND_IMAGE: localhost:5000/datagate-admin
+      UI_IMAGE: localhost:5000/datagate-ui
+    steps:
+      - name: 拉代码（完整历史）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+
+      - name: 计算镜像 tag
+        id: tag
+        run: echo "sha=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: 构建后端镜像（多阶段 maven build ruoyi-admin -am）
+        run: docker build -t $BACKEND_IMAGE:${{ steps.tag.outputs.sha }} -t $BACKEND_IMAGE:latest .
+
+      - name: 构建前端镜像（node 20 + vite build + nginx）
+        run: cd plus-ui && docker build -t $UI_IMAGE:${{ steps.tag.outputs.sha }} -t $UI_IMAGE:latest .
+
+      - name: 推送镜像到本地 registry
+        run: |
+          docker push $BACKEND_IMAGE:${{ steps.tag.outputs.sha }}
+          docker push $BACKEND_IMAGE:latest
+          docker push $UI_IMAGE:${{ steps.tag.outputs.sha }}
+          docker push $UI_IMAGE:latest
+
+      - name: 部署到 VM（docker-compose up -d 应用节点）
+        run: |
+          docker compose -f deploy/docker-compose.yml up -d --no-deps datagate-admin datagate-ui
+          docker compose -f deploy/docker-compose.yml restart prometheus grafana || true
+
+      - name: 滚动等待就绪（actuator/health，最多 90s）
+        run: |
+          code=000
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://192.168.149.128:8080/actuator/health || echo 000)
+            if [ "$code" = "200" ]; then echo "后端就绪 (health 200)"; exit 0; fi
+            sleep 3
+          done
+          echo "后端 90s 内未就绪 (last=$code)" >&2
+          docker logs datagate-admin --tail 50 || true
+          exit 1
+
+      - name: 冒烟测试（前端 80 + 后端 prometheus 指标）
+        run: |
+          ui=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://192.168.149.128/ || echo 000)
+          metrics=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://192.168.149.128:8080/actuator/prometheus || echo 000)
+          echo "ui=$ui metrics=$metrics"
+          [ "$ui" = "200" ] || { echo "前端冒烟失败"; exit 1; }
+          [ "$metrics" = "200" ] || { echo "指标端点冒烟失败"; exit 1; }
+
+      - name: 部署摘要
+        run: |
+          echo "DataGate 部署完成：tag=${{ steps.tag.outputs.sha }}"
+          echo "后端 http://192.168.149.128:8080/actuator/health"
+          echo "前端 http://192.168.149.128/"
+          echo "Prometheus http://192.168.149.128:9090/"
+          echo "Grafana http://192.168.149.128:3000/"

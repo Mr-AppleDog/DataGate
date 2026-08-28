@@ -1,0 +1,15 @@
+# 构建上下文排除：不进镜像、加速 build（参考 DocLoom）
+**/target/
+.idea/
+.git/
+.gitignore
+.gitattributes
+.github/
+**/*.iml
+*.iws
+*.ipr
+HELP.md
+plus-ui/node_modules/
+plus-ui/dist/
+deploy/
+docs/
