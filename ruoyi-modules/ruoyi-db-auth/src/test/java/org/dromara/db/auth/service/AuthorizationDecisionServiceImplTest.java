@@ -58,7 +58,8 @@ class AuthorizationDecisionServiceImplTest {
         return new AuthorizationDecisionServiceImpl(
             repo, hierarchy, membership,
             new DefaultPolicyVersionSource(repo),
-            AuthorizationProperties.productionDefaults()
+            AuthorizationProperties.productionDefaults(),
+            Optional.empty() // 无缓存：保留即时重读授权表语义，覆盖 §13 判定算法
         );
     }
 

@@ -42,7 +42,7 @@ class MysqlQueryExecutorTest {
     // ====================== 测试夹具 ======================
 
     private ExecutionPlan plan(Instant expires) {
-        return new ExecutionPlan("p1", 1L, 100L, "testdb", null,
+        return ExecutionPlan.of("p1", 1L, 100L, "testdb", null,
             "hash", "SELECT * FROM t", "SELECT", java.util.List.of(1L), "dec-1",
             1000, 10_000_000, 30, Instant.now().minusSeconds(60), expires);
     }

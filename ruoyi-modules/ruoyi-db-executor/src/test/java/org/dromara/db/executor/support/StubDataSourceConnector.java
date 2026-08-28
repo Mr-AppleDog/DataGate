@@ -14,6 +14,7 @@ import org.dromara.db.core.enums.DataSourceType;
 import org.dromara.db.core.error.DbErrorCode;
 import org.dromara.db.core.error.DbServiceException;
 import org.dromara.db.core.security.SecretValue;
+import org.dromara.db.core.spi.ChangeExecutor;
 import org.dromara.db.core.spi.DataSourceConnector;
 import org.dromara.db.core.spi.MetadataProvider;
 import org.dromara.db.core.spi.QueryExecutor;
@@ -37,6 +38,7 @@ public class StubDataSourceConnector implements DataSourceConnector {
     public boolean executeInvoked;
     public String canceledExecutionNo;
     public String lastOriginalStatement;
+    public ChangeExecutor cannedChangeExecutor;
 
     private final StubQueryExecutor executor = new StubQueryExecutor(this);
 
@@ -82,6 +84,11 @@ public class StubDataSourceConnector implements DataSourceConnector {
     @Override
     public QueryExecutor queryExecutor() {
         return executor;
+    }
+
+    @Override
+    public Optional<ChangeExecutor> changeExecutor() {
+        return cannedChangeExecutor == null ? Optional.empty() : Optional.of(cannedChangeExecutor);
     }
 
     @Override

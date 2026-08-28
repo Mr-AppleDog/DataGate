@@ -8,6 +8,7 @@ import org.dromara.db.core.authz.AuthorizationDecisionService;
 import org.dromara.db.core.authz.DecisionLimits;
 import org.dromara.db.core.authz.DecisionRequest;
 import org.dromara.db.core.domain.AuditEventInput;
+import org.dromara.db.core.domain.ColumnMaskingPolicy;
 import org.dromara.db.core.domain.ConnectionContext;
 import org.dromara.db.core.domain.ConnectionProfile;
 import org.dromara.db.core.domain.ExecutionPlan;
@@ -25,6 +26,7 @@ import org.dromara.db.core.enums.TlsMode;
 import org.dromara.db.core.error.DbErrorCode;
 import org.dromara.db.core.error.DbServiceException;
 import org.dromara.db.core.security.SecretValue;
+import org.dromara.db.core.spi.ColumnMaskingPolicyResolver;
 import org.dromara.db.core.spi.DataSourceConnector;
 import org.dromara.db.core.spi.QueryExecutor;
 import org.dromara.db.core.spi.ResourcePathResolver;
@@ -43,6 +45,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -79,6 +82,7 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
     private final AuthorizationDecisionService decisionService;
     private final IAuditService auditService;
     private final Optional<ResourcePathResolver> pathResolver;
+    private final Optional<ColumnMaskingPolicyResolver> columnPolicyResolver;
 
     /** executionNo → 执行器，供 cancel 路由 */
     private final Map<String, QueryExecutor> activeExecutors = new ConcurrentHashMap<>();
@@ -88,13 +92,15 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
                                      ConnectorRegistry connectorRegistry,
                                      AuthorizationDecisionService decisionService,
                                      IAuditService auditService,
-                                     Optional<ResourcePathResolver> pathResolver) {
+                                     Optional<ResourcePathResolver> pathResolver,
+                                     Optional<ColumnMaskingPolicyResolver> columnPolicyResolver) {
         this.dataSourceService = dataSourceService;
         this.credentialVaultService = credentialVaultService;
         this.connectorRegistry = connectorRegistry;
         this.decisionService = decisionService;
         this.auditService = auditService;
         this.pathResolver = pathResolver;
+        this.columnPolicyResolver = columnPolicyResolver;
     }
 
     @Override
@@ -151,8 +157,8 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
                 "非只读语句已拒绝", ds, stmt.fingerprint(), startedAt);
         }
 
-        // 3. 资源路径解析为可鉴权 ID（docs/02 §8.1 step 4-5）
-        List<String> paths = completeDefaultDatabase(stmt.resourcePaths(), defaultDatabase);
+        // 3. 资源路径解析为可鉴权 ID（docs/02 §8.1 step 4-5）——按引擎补全未限定库/schema/逻辑DB
+        List<String> paths = completeDefaultDatabase(stmt.resourcePaths(), defaultDatabase, type, req.schemaName());
         List<Long> resourceIds = resolveResourceIds(req.dataSourceId(), defaultDatabase, paths, ds, stmt, startedAt, req);
 
         // 4. 逐资源授权判定（docs/03 §7、docs/06 §4 step 7）——任一拒绝即整体拒绝
@@ -168,11 +174,17 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
         Instant expiresAt = createdAt.plusSeconds(Math.max(agg.maxSeconds, 1L));
         long maxRows = cap(req.clientMaxRows(), agg.maxRows, HARD_MAX_ROWS);
         long maxBytes = cap(req.clientMaxBytes(), agg.maxBytes, HARD_MAX_BYTES);
+
+        // M5-05c：列脱敏上下文（docs/06 §11 列来源、docs/03 §9 COLUMN_UNMASK 临时明文）
+        Map<String, ColumnMaskingPolicy> columnPolicies = columnPolicyResolver
+            .map(r -> r.resolveByTableColumn(resourceIds)).orElse(Map.of());
+        Map<String, MaskingLevel> columnUnmaskLevels = resolveColumnUnmaskLevels(req, columnPolicies);
+
         ExecutionPlan plan = new ExecutionPlan(
             planId, req.userId(), req.dataSourceId(), defaultDatabase, req.schemaName(),
             sha256(req.statement()), stmt.normalizedStatement(), stmt.statementType(),
             resourceIds, agg.decisionId, maxRows, maxBytes, agg.maxSeconds,
-            createdAt, expiresAt);
+            createdAt, expiresAt, agg.masking(), columnPolicies, columnUnmaskLevels);
 
         // 6. 解密凭据 + 组装 ConnectionContext（docs/02 §8.1 step 8-9、ADR-008）
         DbCredential cred = credentialVaultService.findActive(req.dataSourceId(), CredentialPurpose.QUERY)
@@ -274,18 +286,86 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
         return AggregatedDecision.allowed(decisionId, maxRows, maxBytes, maxSeconds, masking, policyVersion);
     }
 
-    /** 补全未限定库名的表路径（docs/06 §4：parser 输出 /table/t，编排者补 /db/<default>/table/t） */
-    private static List<String> completeDefaultDatabase(List<String> paths, String defaultDatabase) {
-        if (defaultDatabase == null || defaultDatabase.isBlank()) {
-            return paths;
+    /**
+     * 解析列明文级别：对每个敏感列判定 COLUMN_UNMASK 临时授权（含 requireRecentReauth 二次认证，docs/03 §6/§10.2）。
+     * 允许则该列 UNMASKED；否则保持资源级 MASKED/HIDDEN。判定异常不泄露原值，列保持掩码。
+     */
+    private Map<String, MaskingLevel> resolveColumnUnmaskLevels(QueryExecutionRequest req,
+                                                                Map<String, ColumnMaskingPolicy> columnPolicies) {
+        Map<String, MaskingLevel> out = new HashMap<>();
+        if (columnPolicies == null || columnPolicies.isEmpty()) {
+            return out;
         }
-        String prefix = "/table/";
-        return paths.stream().map(p -> {
-            if (p != null && p.startsWith(prefix) && !p.startsWith("/db/")) {
-                return "/db/" + defaultDatabase + p;
+        for (Map.Entry<String, ColumnMaskingPolicy> e : columnPolicies.entrySet()) {
+            ColumnMaskingPolicy cp = e.getValue();
+            if (cp == null || !cp.isSensitive() || cp.resourceId() == null) {
+                continue;
             }
-            return p;
-        }).toList();
+            DecisionRequest dr = new DecisionRequest(req.userId(), req.sessionId(), req.sourceIp(),
+                cp.resourceId(), DbAction.COLUMN_UNMASK, Map.of());
+            try {
+                AccessDecision d = decisionService.decide(dr);
+                if (d.allowed()) {
+                    out.put(e.getKey(), MaskingLevel.UNMASKED);
+                }
+            } catch (RuntimeException ex) {
+                log.warn("COLUMN_UNMASK 判定异常 columnId={}", cp.resourceId(), ex);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 补全未限定库名的资源路径（docs/06 §4：parser 输出 best-effort 路径，编排者按引擎补全为
+     * 与资源目录 canonicalPath 一致的形态，供 ResourcePathResolver 精确匹配）。
+     *
+     * <p>引擎感知补全（跨 lane 集成适配，M3 切片）：</p>
+     * <ul>
+     *   <li>MySQL：{@code /table/<t>} → {@code /db/<defaultDatabase>/table/<t>}（无 schema 层，db 即 schema）；</li>
+     *   <li>PostgreSQL：{@code /table/<t>} → {@code /schema/<defaultSchema>/table/<t>}（PG schema 是 db 下隐式层，
+     *       目录 schema/table 不带 db 前缀；defaultSchema 缺省 {@code public}，与执行器 search_path 一致）；</li>
+     *   <li>Redis：{@code /kpp/<prefix>} → {@code /rdb/<defaultDatabase>/kpp/<prefix>}（逻辑 DB，集群固定 0）。</li>
+     * </ul>
+     * 已限定 schema/db 的路径与已带 db 前缀的 Redis 路径原样返回（匹配目录）。
+     */
+    static List<String> completeDefaultDatabase(List<String> paths, String defaultDatabase,
+                                                 DataSourceType type, String defaultSchema) {
+        if (paths == null || paths.isEmpty()) {
+            return paths == null ? List.of() : paths;
+        }
+        return switch (type) {
+            case POSTGRESQL -> {
+                String schema = (defaultSchema != null && !defaultSchema.isBlank()) ? defaultSchema : "public";
+                yield paths.stream().map(p -> {
+                    if (p != null && p.startsWith("/table/") && !p.startsWith("/db/") && !p.startsWith("/schema/")) {
+                        return "/schema/" + schema + p; // /schema/public/table/<t>
+                    }
+                    return p; // schema/db 限定路径原样匹配目录
+                }).toList();
+            }
+            case REDIS -> {
+                String db = (defaultDatabase != null && !defaultDatabase.isBlank()) ? defaultDatabase : "0";
+                yield paths.stream().map(p -> {
+                    if (p != null && p.startsWith("/kpp/") && !p.startsWith("/rdb/")) {
+                        return "/rdb/" + db + p; // /rdb/0/kpp/<prefix>
+                    }
+                    return p;
+                }).toList();
+            }
+            default -> {
+                // MYSQL/TAIR：/table/<t> → /db/<defaultDatabase>/table/<t>
+                if (defaultDatabase == null || defaultDatabase.isBlank()) {
+                    yield paths;
+                }
+                String prefix = "/table/";
+                yield paths.stream().map(p -> {
+                    if (p != null && p.startsWith(prefix) && !p.startsWith("/db/")) {
+                        return "/db/" + defaultDatabase + p;
+                    }
+                    return p;
+                }).toList();
+            }
+        };
     }
 
     private void auditQuery(QueryExecutionRequest req, DbDataSource ds, ExecutionResultMeta result,

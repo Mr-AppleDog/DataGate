@@ -12,7 +12,8 @@
     <artifactId>ruoyi-db-connector-postgresql</artifactId>
 
     <description>
-        connector-postgresql PostgreSQL/RDS PG 连接器。
+        connector-postgresql PostgreSQL/RDS PG 连接器。覆盖 schema/search_path、只读事务、
+        statement_timeout、安全 EXPLAIN（禁止 ANALYZE）、pg_catalog 受控访问与 COPY/DO 拦截。
     </description>
 
     <dependencies>
@@ -31,6 +32,36 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>druid</artifactId>
+        </dependency>
+
+        <!-- 目标库连接池（HikariCP，docs/02 §8.3，禁止注册进 dynamic-datasource） -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+        </dependency>
+
+        <!-- Spring 组件注解（连接器由注册表装配为 Bean） -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
+        <!-- 采集游标 JSON 序列化（pg_stat_statements 快照） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- 单元测试（纯 AST，不连数据库） -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

@@ -41,6 +41,8 @@ public class MysqlConnector implements DataSourceConnector {
     private final MysqlMetadataProvider metadataProvider = new MysqlMetadataProvider();
     private final MysqlQueryParser queryParser = new MysqlQueryParser();
     private final MysqlQueryExecutor queryExecutor = new MysqlQueryExecutor(queryParser);
+    private final MysqlSlowQueryProvider slowQueryProvider = new MysqlSlowQueryProvider(this);
+    private final MysqlChangeExecutor changeExecutor = new MysqlChangeExecutor(this);
 
     @Override
     public DataSourceType type() {
@@ -124,8 +126,13 @@ public class MysqlConnector implements DataSourceConnector {
     }
 
     @Override
+    public java.util.Optional<org.dromara.db.core.spi.ChangeExecutor> changeExecutor() {
+        return java.util.Optional.of(changeExecutor);
+    }
+
+    @Override
     public Optional<SlowQueryProvider> slowQueryProvider() {
-        // M4 提供
-        return Optional.empty();
+        // M4：performance_schema 摘要差值采集（docs/07 §4.2）
+        return Optional.of(slowQueryProvider);
     }
 }

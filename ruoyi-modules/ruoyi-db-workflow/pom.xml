@@ -27,6 +27,12 @@
             <artifactId>ruoyi-db-auth</artifactId>
         </dependency>
 
+        <!-- M5 导出/变更工单：数据源/连接器注册表/路径解析/加密对象存储/列策略解析 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-resource</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-common-mybatis</artifactId>

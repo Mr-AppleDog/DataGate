@@ -11,9 +11,11 @@ import org.dromara.db.core.domain.ParsedStatement;
 import org.dromara.db.core.domain.RowCell;
 import org.dromara.db.core.domain.RowHeader;
 import org.dromara.db.core.enums.DbAction;
+import org.dromara.db.core.masking.MaskingApplier;
 import org.dromara.db.core.enums.ExecutionStatus;
 import org.dromara.db.core.enums.TlsMode;
 import org.dromara.db.core.error.DbErrorCode;
+import org.dromara.db.core.spi.FieldMaskingEngine;
 import org.dromara.db.core.spi.QueryExecutor;
 import org.dromara.db.core.spi.QueryParser;
 import org.dromara.db.core.spi.RowCallback;
@@ -65,6 +67,8 @@ public class MysqlQueryExecutor implements QueryExecutor {
     private static final int CELL_LIMIT = 1 << 20;
 
     private final QueryParser parser;
+    /** 服务端流式脱敏引擎（docs/06 §11、M5-05c），执行器在 buildRow 后应用 */
+    private final FieldMaskingEngine maskingEngine = new org.dromara.db.core.masking.DefaultFieldMaskingEngine();
     /** 连接池缓存：dataSourceId:username → HikariDataSource。 */
     private final ConcurrentMap<String, HikariDataSource> pools = new ConcurrentHashMap<>();
     /** dataSourceId → 当前版本池 key（用于切换 username 时淘汰旧池）。 */
@@ -178,6 +182,7 @@ public class MysqlQueryExecutor implements QueryExecutor {
                         break;
                     }
                     List<RowCell> cells = buildRow(rs, md, n);
+                    cells = applyMasking(cells, md, n, plan);
                     long rowBytes = estimateBytes(cells);
                     bytes += rowBytes;
                     boolean cont = callback.onRow(cells);
@@ -356,6 +361,31 @@ public class MysqlQueryExecutor implements QueryExecutor {
             }
         }
         return cells;
+    }
+
+    /**
+     * 服务端流式脱敏（docs/06 §11、M5-05c）：按 JDBC 基列名 lineage 查列策略并掩码。
+     * 未知来源在 MASKED 上下文隐藏，防 SELECT sensitive AS x 借名绕过。
+     */
+    private List<RowCell> applyMasking(List<RowCell> cells, ResultSetMetaData md, int n, ExecutionPlan plan) {
+        if (plan == null || n == 0) {
+            return cells;
+        }
+        String[] tables = new String[n];
+        String[] cols = new String[n];
+        for (int i = 1; i <= n; i++) {
+            try {
+                tables[i - 1] = md.getTableName(i);
+            } catch (SQLException ignored) {
+                tables[i - 1] = "";
+            }
+            try {
+                cols[i - 1] = md.getColumnName(i);
+            } catch (SQLException ignored) {
+                cols[i - 1] = "";
+            }
+        }
+        return MaskingApplier.applyRow(cells, java.util.Arrays.asList(tables), java.util.Arrays.asList(cols), plan, maskingEngine);
     }
 
     private static boolean isBinary(String typeName) {

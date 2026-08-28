@@ -45,6 +45,12 @@
             <artifactId>spring-context</artifactId>
         </dependency>
 
+        <!-- 采集游标 JSON 序列化（performance_schema 快照） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
         <!-- 单元测试（纯 AST，不连数据库） -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

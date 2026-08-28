@@ -3,6 +3,7 @@ package org.dromara.db.auth.service;
 import lombok.extern.slf4j.Slf4j;
 import org.dromara.db.auth.config.AuthorizationProperties;
 import org.dromara.db.auth.domain.Grant;
+import org.dromara.db.auth.policy.DecisionCache;
 import org.dromara.db.auth.repository.GrantRepository;
 import org.dromara.db.auth.resolver.ResourceHierarchyResolver;
 import org.dromara.db.auth.resolver.SubjectMembership;
@@ -48,19 +49,23 @@ public class AuthorizationDecisionServiceImpl implements AuthorizationDecisionSe
     private final Optional<SubjectMembershipResolver> membershipResolver;
     private final org.dromara.db.auth.policy.PolicyVersionSource policyVersionSource;
     private final AuthorizationProperties properties;
+    /** 决策缓存（撤权 60s 生效，docs/06 §16）。缺省（未注入）每次重读授权表。 */
+    private final Optional<DecisionCache> decisionCache;
 
     public AuthorizationDecisionServiceImpl(
         GrantRepository grantRepository,
         Optional<ResourceHierarchyResolver> hierarchyResolver,
         Optional<SubjectMembershipResolver> membershipResolver,
         org.dromara.db.auth.policy.PolicyVersionSource policyVersionSource,
-        AuthorizationProperties properties
+        AuthorizationProperties properties,
+        Optional<DecisionCache> decisionCache
     ) {
         this.grantRepository = grantRepository;
         this.hierarchyResolver = hierarchyResolver;
         this.membershipResolver = membershipResolver;
         this.policyVersionSource = policyVersionSource;
         this.properties = properties;
+        this.decisionCache = decisionCache;
     }
 
     @Override
@@ -70,17 +75,45 @@ public class AuthorizationDecisionServiceImpl implements AuthorizationDecisionSe
 
     /**
      * 可注入当前时间的判定入口（纯单元测试用，避免依赖系统时钟）。
+     *
+     * <p>缓存语义（docs/06 §16 撤权 60s）：键含 policyVersion，权限变更递增版本后旧键不命中→同节点
+     * 即时失效；TTL（≤60s）作为跨节点保底——即使他节点版本读取滞后，缓存条目 TTL 内自然过期，
+     * 下次判定重读授权表→撤销的授权被 isActive 过滤→默认拒绝。异常路径不缓存（避免瞬态错误被固化）。</p>
      */
     AccessDecision doDecide(DecisionRequest request, Instant now) {
         long policyVersion = safePolicyVersion();
+        DecisionCache cache = decisionCache.orElse(null);
+        String cacheKey = cacheKey(request, cache, policyVersion);
+        if (cacheKey != null) {
+            Optional<AccessDecision> hit = cache.get(cacheKey, now);
+            if (hit.isPresent()) {
+                return hit.get();
+            }
+        }
+        AccessDecision decision;
         try {
-            return decideInternal(request, now, policyVersion);
+            decision = decideInternal(request, now, policyVersion);
         } catch (Exception e) {
-            // 失败关闭：判定过程任何异常均拒绝而非放行（docs/03 第 1.1、7.2 节）
+            // 失败关闭：判定过程任何异常均拒绝而非放行（docs/03 第 1.1、7.2 节）；异常路径不缓存
             log.warn("authorization decision failed (fail-closed): actor={} resource={} action={} reason={}",
                 request.actorId(), request.resourceId(), request.action(), e.toString());
             return deny(DecisionReasonCodes.DENY_DECISION_ERROR, List.of(), policyVersion);
         }
+        if (cacheKey != null) {
+            cache.put(cacheKey, decision, now);
+        }
+        return decision;
+    }
+
+    /** 构造缓存键（actor/resource/action 非空时）；缺省缓存或空值返回 null（不缓存）。 */
+    private static String cacheKey(DecisionRequest request, DecisionCache cache, long policyVersion) {
+        if (cache == null || request.actorId() == null
+            || request.resourceId() == null || request.action() == null) {
+            return null;
+        }
+        String ctxHash = DecisionCacheKey.contextHash(request.requestContext());
+        return DecisionCacheKey.build(request.actorId(), request.resourceId(),
+            request.action(), ctxHash, policyVersion);
     }
 
     private AccessDecision decideInternal(DecisionRequest request, Instant now, long policyVersion) {

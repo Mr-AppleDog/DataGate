@@ -25,6 +25,49 @@
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-common-mybatis</artifactId>
         </dependency>
+
+        <!-- SQL AST 归一化（仅 Parser/AST/Visitor，docs/07 §5.1 双指纹） -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid</artifactId>
+        </dependency>
+
+        <!-- JSON 序列化（riskFlags/affectedDatabases） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-common-json</artifactId>
+        </dependency>
+
+        <!-- Spring 组件注解（Normalizer/IngestService 装配为 Bean） -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
+        <!-- 采集编排：连接器注册表/凭据保险箱/数据源（resource） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-resource</artifactId>
+        </dependency>
+
+        <!-- 采集事件审计 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-audit</artifactId>
+        </dependency>
+
+        <!-- 单源采集分布式锁（Redisson，docs/07 §4.1） -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-common-redis</artifactId>
+        </dependency>
+
+        <!-- 单元测试（归一化/聚合算法 + Mockito，不连数据库） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>

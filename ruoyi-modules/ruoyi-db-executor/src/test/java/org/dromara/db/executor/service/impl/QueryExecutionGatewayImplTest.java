@@ -71,7 +71,7 @@ class QueryExecutionGatewayImplTest {
 
     private QueryExecutionGatewayImpl newGateway(Optional<ResourcePathResolver> pr) {
         return new QueryExecutionGatewayImpl(dataSourceService, credentialVault, registry,
-            decisionService, auditService, pr);
+            decisionService, auditService, pr, java.util.Optional.empty());
     }
 
     private QueryExecutionRequest req() {

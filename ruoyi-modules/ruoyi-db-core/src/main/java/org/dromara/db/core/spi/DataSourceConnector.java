@@ -56,4 +56,12 @@ public interface DataSourceConnector {
      * 慢查询采集提供者（可选能力）
      */
     Optional<SlowQueryProvider> slowQueryProvider();
+
+    /**
+     * 变更执行器（可选能力，M5-02）：专用变更账号逐语句执行已审批 DML/DDL。
+     * 未声明的引擎不可执行变更（UI/API/执行器三层均不可用）。
+     */
+    default Optional<ChangeExecutor> changeExecutor() {
+        return Optional.empty();
+    }
 }
