@@ -40,6 +40,12 @@
             <artifactId>ruoyi-db-audit</artifactId>
         </dependency>
 
+        <!-- M6-02 监控指标埋点：Micrometer 计时器/计数器（actuator/prometheus 由 ruoyi-admin 运行时提供） -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
         <!-- 操作人上下文（审计 actor 快照） -->
         <dependency>
             <groupId>org.dromara</groupId>

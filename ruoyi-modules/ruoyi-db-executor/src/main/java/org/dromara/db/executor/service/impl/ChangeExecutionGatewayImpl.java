@@ -45,21 +45,26 @@ public class ChangeExecutionGatewayImpl implements ChangeExecutionGateway {
     private final ICredentialVaultService credentialVaultService;
     private final ConnectorRegistry connectorRegistry;
     private final IAuditService auditService;
+    private final org.dromara.db.executor.support.DatagateMetrics metrics;
 
     public ChangeExecutionGatewayImpl(IDbDataSourceService dataSourceService,
                                        ICredentialVaultService credentialVaultService,
                                        ConnectorRegistry connectorRegistry,
-                                       IAuditService auditService) {
+                                       IAuditService auditService,
+                                       org.dromara.db.executor.support.DatagateMetrics metrics) {
         this.dataSourceService = dataSourceService;
         this.credentialVaultService = credentialVaultService;
         this.connectorRegistry = connectorRegistry;
         this.auditService = auditService;
+        this.metrics = metrics;
     }
 
     @Override
     public ChangeResult execute(ChangeExecutionRequest req) {
         long start = System.nanoTime();
         String executionNo = "change-" + java.util.UUID.randomUUID();
+        io.micrometer.core.instrument.Timer.Sample timer = metrics.start();
+        metrics.changeStarted();
         if (req == null || req.statement() == null || req.statement().isBlank()) {
             return ChangeResult.failed(executionNo, DbErrorCode.QUERY_PARSE_FAILED.name(), ms(start));
         }
@@ -95,6 +100,14 @@ public class ChangeExecutionGatewayImpl implements ChangeExecutionGateway {
             result = ChangeResult.failed(executionNo, DbErrorCode.INTERNAL_ERROR.name(), ms(start));
         }
         audit(req, ds, result, start);
+        if (result != null) {
+            metrics.stop(timer, "datagate.change.duration", "status", result.status().name(),
+                "errorCode", result.errorCode() == null ? "" : result.errorCode());
+            if (result.status() != ExecutionStatus.SUCCEEDED) {
+                metrics.increment("datagate.change.failed", "status", result.status().name());
+            }
+        }
+        metrics.changeEnded();
         return result;
     }
 

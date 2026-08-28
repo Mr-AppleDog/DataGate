@@ -1,0 +1,52 @@
+# DataGate 平台告警规则（docs/09 §10）
+# 平台自身告警与业务慢 SQL 告警（M4 alert 模块）使用不同规则与独立通道。
+# 数据源：Prometheus /actuator/prometheus（datagate.* + micrometer + hikaricp + jvm）。
+groups:
+  - name: datagate-p1
+    interval: 30s
+    rules:
+      # P1 紧急
+      - alert: DatagateQueryErrorRateHigh
+        expr: sum(rate(datagate_query_failed_total[5m])) / clamp_min(sum(rate(datagate_query_duration_seconds_count[5m])), 1) > 0.1
+        for: 5m
+        labels: {severity: P1, team: datagate}
+        annotations: {summary: "查询错误率 >10%", runbook: "检查目标源/凭据/连接池"}
+      - alert: DatagateKekLoadFailure
+        expr: up{job="datagate"} == 0
+        for: 1m
+        labels: {severity: P1, team: datagate}
+        annotations: {summary: "datagate 实例不可达（含 KEK 加载失败致启动失败）"}
+      - alert: DatagateAuditWriteFailure
+        expr: sum(rate(datagate_audit_write_failed_total[5m])) > 0
+        for: 1m
+        labels: {severity: P1, team: datagate}
+        annotations: {summary: "审计写入失败（失败关闭：高风险业务动作应已失败）", runbook: "检查元数据库/哈希链；审计不可写时高风险动作失败关闭"}
+      # TODO P1 待补埋点：KEK/签名密钥加载失败（datagate_kek_load_failed_total）、元数据库主库不可用（pg_up）、
+      #   生产权限版本传播>60s（datagate_policy_version_lag_seconds）、执行器非白名单访问（datagate_connector_unauthorized_total）
+
+  - name: datagate-p2
+    interval: 60s
+    rules:
+      # P2 重要
+      - alert: DatagateChangeErrorRateHigh
+        expr: sum(rate(datagate_change_failed_total[5m])) > 0
+        for: 10m
+        labels: {severity: P2, team: datagate}
+        annotations: {summary: "变更执行失败率持续>0"}
+      - alert: DatagatePoolWaitHigh
+        expr: hikaricp_connections_pending > 0
+        for: 5m
+        labels: {severity: P2, team: datagate}
+        annotations: {summary: "连接池等待>0 持续5m", runbook: "扩容池/检查慢查询/凭据轮换"}
+      - alert: DatagateJvmHeapHigh
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 10m
+        labels: {severity: P2, team: datagate}
+        annotations: {summary: "JVM heap >85%"}
+      - alert: DatagateDiskNearFull
+        expr: node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/"} < 0.15
+        for: 5m
+        labels: {severity: P2, team: datagate}
+        annotations: {summary: "磁盘剩余 <15%（WAL/对象存储/归档）"}
+      # TODO P2 待补埋点：查询队列>80%（datagate_queue_length）、慢查询采集延迟>3周期（M4 alert）、
+      #   outbox 积压（M4 alert）、备份/校验失败（datagate_backup_failed_total）

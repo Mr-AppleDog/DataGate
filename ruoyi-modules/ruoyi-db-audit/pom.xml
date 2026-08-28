@@ -21,6 +21,12 @@
             <artifactId>ruoyi-db-core</artifactId>
         </dependency>
 
+        <!-- M6-02 监控：审计写入失败计数器 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-common-mybatis</artifactId>

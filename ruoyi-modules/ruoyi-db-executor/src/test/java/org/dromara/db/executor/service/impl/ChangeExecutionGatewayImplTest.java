@@ -50,11 +50,11 @@ class ChangeExecutionGatewayImplTest {
         changeExecutor = new StubChangeExecutor();
         changeExecutor.canned = new ChangeResult("exec-1", ExecutionStatus.SUCCEEDED, 5, "[{idx:0,status:SUCCEEDED,affectedRows:5}]", null, 10);
         connector.cannedChangeExecutor = changeExecutor;
-        registry = new ConnectorRegistry(List.of(connector));
+        registry = new ConnectorRegistry(List.of(connector), java.util.Optional.empty());
     }
 
     private ChangeExecutionGatewayImpl gateway() {
-        return new ChangeExecutionGatewayImpl(dataSourceService, credentialVault, registry, auditService);
+        return new ChangeExecutionGatewayImpl(dataSourceService, credentialVault, registry, auditService, new org.dromara.db.executor.support.DatagateMetrics(java.util.Optional.empty()));
     }
 
     private ChangeExecutionRequest req() {

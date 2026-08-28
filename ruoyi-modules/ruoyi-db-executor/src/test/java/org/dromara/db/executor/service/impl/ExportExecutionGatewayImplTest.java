@@ -63,11 +63,11 @@ class ExportExecutionGatewayImplTest {
             "SELECT", List.of("/table/orders"), "select * from orders", "fp", DbAction.QUERY, true));
         connector.cannedResult = new ExecutionResultMeta("exec-1", ExecutionStatus.SUCCEEDED, 0, 0, 0, false, null);
         connector.emitRows = 3;
-        registry = new ConnectorRegistry(List.of(connector));
+        registry = new ConnectorRegistry(List.of(connector), java.util.Optional.empty());
     }
 
     private ExportExecutionGatewayImpl gateway(Optional<EncryptedObjectStore> os) {
-        return new ExportExecutionGatewayImpl(dataSourceService, credentialVault, registry, os, auditService);
+        return new ExportExecutionGatewayImpl(dataSourceService, credentialVault, registry, os, auditService, new org.dromara.db.executor.support.DatagateMetrics(java.util.Optional.empty()));
     }
 
     private ExportExecutionRequest req() {

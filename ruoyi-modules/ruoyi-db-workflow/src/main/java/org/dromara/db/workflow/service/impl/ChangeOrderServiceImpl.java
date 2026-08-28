@@ -92,6 +92,7 @@ public class ChangeOrderServiceImpl implements ChangeOrderService {
     private final Optional<EncryptedObjectStore> objectStore;
     private final AuthorizationDecisionService decisionService;
     private final Optional<ChangeExecutionGateway> changeExecutionGateway;
+    private final Optional<org.dromara.db.core.spi.FeatureGateService> featureGateService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -99,6 +100,12 @@ public class ChangeOrderServiceImpl implements ChangeOrderService {
         Long applicantId = LoginHelper.getUserId();
         if (applicantId.equals(bo.getBizApproverId()) || applicantId.equals(bo.getDbaApproverId())) {
             throw new ServiceException("申请人不能审批本人申请（docs/03 §9）");
+        }
+        org.dromara.db.core.enums.FeatureGate chgGate = "REDIS".equalsIgnoreCase(bo.getChangeType())
+            ? org.dromara.db.core.enums.FeatureGate.REDIS_WRITE
+            : ("DDL".equals(bo.getChangeType()) ? org.dromara.db.core.enums.FeatureGate.CHANGE_DDL : org.dromara.db.core.enums.FeatureGate.CHANGE_DML);
+        if (featureGateService.isPresent() && !featureGateService.get().isEnabled(chgGate, bo.getDataSourceId())) {
+            throw new ServiceException(chgGate + " 功能未灰度开放（docs/09 §14.3）");
         }
         DbDataSource ds = requireActiveDs(bo.getDataSourceId());
         boolean isRedis = "REDIS".equalsIgnoreCase(bo.getChangeType());

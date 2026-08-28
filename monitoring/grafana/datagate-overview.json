@@ -1,0 +1,37 @@
+{
+  "annotations": {"list": []},
+  "title": "DataGate 概览（docs/09 §9.1）",
+  "uid": "datagate-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "30s",
+  "tags": ["datagate", "m6"],
+  "panels": [
+    {"id": 1, "type": "stat", "title": "查询 SLO：p95 ≤ 待定", "gridPos": {"x":0,"y":0,"w":6,"h":4}, "targets": [{"expr": "histogram_quantile(0.95, sum(rate(datagate_query_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95"}]},
+    {"id": 2, "type": "timeseries", "title": "查询/导出/变更 耗时 p95", "gridPos": {"x":6,"y":0,"w":18,"h":8}, "targets": [
+      {"expr": "histogram_quantile(0.95, sum(rate(datagate_query_duration_seconds_bucket[5m])) by (le))", "legendFormat": "query p95"},
+      {"expr": "histogram_quantile(0.95, sum(rate(datagate_export_duration_seconds_bucket[5m])) by (le))", "legendFormat": "export p95"},
+      {"expr": "histogram_quantile(0.95, sum(rate(datagate_change_duration_seconds_bucket[5m])) by (le))", "legendFormat": "change p95"}
+    ]},
+    {"id": 3, "type": "timeseries", "title": "活跃执行数", "gridPos": {"x":0,"y":8,"w":12,"h":8}, "targets": [
+      {"expr": "datagate_query_active", "legendFormat": "query"},
+      {"expr": "datagate_export_active", "legendFormat": "export"},
+      {"expr": "datagate_change_active", "legendFormat": "change"}
+    ]},
+    {"id": 4, "type": "timeseries", "title": "失败/拒绝速率", "gridPos": {"x":12,"y":8,"w":12,"h":8}, "targets": [
+      {"expr": "sum(rate(datagate_query_failed_total[5m]))", "legendFormat": "query failed"},
+      {"expr": "sum(rate(datagate_query_rejected_total[5m]))", "legendFormat": "query rejected"},
+      {"expr": "sum(rate(datagate_export_failed_total[5m]))", "legendFormat": "export failed"},
+      {"expr": "sum(rate(datagate_change_failed_total[5m]))", "legendFormat": "change failed"}
+    ]},
+    {"id": 5, "type": "timeseries", "title": "JVM heap", "gridPos": {"x":0,"y":16,"w":12,"h":8}, "targets": [{"expr": "jvm_memory_used_bytes{area=\"heap\"}", "legendFormat": "{{id}}"}]},
+    {"id": 6, "type": "timeseries", "title": "HikariCP 连接池", "gridPos": {"x":12,"y":16,"w":12,"h":8}, "targets": [
+      {"expr": "hikaricp_connections_active", "legendFormat": "active"},
+      {"expr": "hikaricp_connections_idle", "legendFormat": "idle"},
+      {"expr": "hikaricp_connections_pending", "legendFormat": "pending"}
+    ]}
+  ],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"}
+}

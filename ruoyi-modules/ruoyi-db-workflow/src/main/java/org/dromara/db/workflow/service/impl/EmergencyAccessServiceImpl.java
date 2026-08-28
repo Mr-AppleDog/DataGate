@@ -55,6 +55,7 @@ public class EmergencyAccessServiceImpl implements EmergencyAccessService {
     private final IFlwTaskService flwTaskService;
     private final IAuditService auditService;
     private final GrantAdminService grantAdminService;
+    private final java.util.Optional<org.dromara.db.core.spi.FeatureGateService> featureGateService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -62,6 +63,9 @@ public class EmergencyAccessServiceImpl implements EmergencyAccessService {
         Long applicantId = LoginHelper.getUserId();
         if (bo.getApprover1Id().equals(bo.getApprover2Id())) {
             throw new ServiceException("两名审批人不能相同（docs/03 §10.4 双人审批）");
+        }
+        if (featureGateService.isPresent() && !featureGateService.get().isEnabled(org.dromara.db.core.enums.FeatureGate.EMERGENCY_ACCESS)) {
+            throw new ServiceException("紧急访问功能未灰度开放（docs/09 §14.3）");
         }
         if (applicantId.equals(bo.getApprover1Id()) || applicantId.equals(bo.getApprover2Id())) {
             throw new ServiceException("申请人不能为审批人（docs/03 §9）");

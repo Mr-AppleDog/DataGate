@@ -39,6 +39,15 @@ public interface IAuditService {
     AuditChainVerification verifyChain(String chainKey);
 
     /**
+     * 校验分片范围（归档完整性复核，docs/08 §9.3 / docs/09 §12.3，M6-03）。
+     *
+     * @param fromChainKey 起始分片（yyyyMMdd）
+     * @param toChainKey 截止分片（yyyyMMdd）
+     * @return 区间内每分片校验结果
+     */
+    java.util.List<AuditChainVerification> verifyChainRange(String fromChainKey, String toChainKey);
+
+    /**
      * 哈希链校验结果
      *
      * @param chainKey    分片键

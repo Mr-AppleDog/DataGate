@@ -66,12 +66,12 @@ class QueryExecutionGatewayImplTest {
             DbAction.QUERY, true));
         connector.cannedResult = new ExecutionResultMeta("exec-1", ExecutionStatus.SUCCEEDED,
             5, 1, 100, false, null);
-        registry = new ConnectorRegistry(List.of(connector));
+        registry = new ConnectorRegistry(List.of(connector), java.util.Optional.empty());
     }
 
     private QueryExecutionGatewayImpl newGateway(Optional<ResourcePathResolver> pr) {
         return new QueryExecutionGatewayImpl(dataSourceService, credentialVault, registry,
-            decisionService, auditService, pr, java.util.Optional.empty());
+            decisionService, auditService, pr, java.util.Optional.empty(), new org.dromara.db.executor.support.DatagateMetrics(java.util.Optional.empty()));
     }
 
     private QueryExecutionRequest req() {

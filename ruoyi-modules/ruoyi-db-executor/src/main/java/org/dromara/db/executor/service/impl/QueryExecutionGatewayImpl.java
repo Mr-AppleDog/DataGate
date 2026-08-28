@@ -83,6 +83,7 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
     private final IAuditService auditService;
     private final Optional<ResourcePathResolver> pathResolver;
     private final Optional<ColumnMaskingPolicyResolver> columnPolicyResolver;
+    private final org.dromara.db.executor.support.DatagateMetrics metrics;
 
     /** executionNo → 执行器，供 cancel 路由 */
     private final Map<String, QueryExecutor> activeExecutors = new ConcurrentHashMap<>();
@@ -93,7 +94,8 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
                                      AuthorizationDecisionService decisionService,
                                      IAuditService auditService,
                                      Optional<ResourcePathResolver> pathResolver,
-                                     Optional<ColumnMaskingPolicyResolver> columnPolicyResolver) {
+                                     Optional<ColumnMaskingPolicyResolver> columnPolicyResolver,
+                                     org.dromara.db.executor.support.DatagateMetrics metrics) {
         this.dataSourceService = dataSourceService;
         this.credentialVaultService = credentialVaultService;
         this.connectorRegistry = connectorRegistry;
@@ -101,11 +103,14 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
         this.auditService = auditService;
         this.pathResolver = pathResolver;
         this.columnPolicyResolver = columnPolicyResolver;
+        this.metrics = metrics;
     }
 
     @Override
     public ExecutionResultMeta execute(QueryExecutionRequest req, RowCallback clientCallback) {
         Instant startedAt = Instant.now();
+        io.micrometer.core.instrument.Timer.Sample timer = metrics.start();
+        metrics.queryStarted();
 
         // 1. 解析数据源并校验状态（docs/02 §8.1 step 2-3）
         DbDataSource ds = dataSourceService.queryById(req.dataSourceId());
@@ -218,6 +223,7 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
 
         // 7. 写查询审计（docs/02 §8.1 step 14、M2-05）——只记规模/指纹/状态，不记 SQL 参数与结果正文
         auditQuery(req, ds, result, stmt.fingerprint(), agg.decisionId, startedAt);
+        recordMetrics(timer, result, null);
         return result;
     }
 
@@ -417,6 +423,16 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
         }
     }
 
+    private void recordMetrics(io.micrometer.core.instrument.Timer.Sample timer, ExecutionResultMeta result, String errorCodeOverride) {
+        metrics.queryEnded();
+        String status = result == null ? "UNKNOWN" : result.status().name();
+        String ec = errorCodeOverride != null ? errorCodeOverride : (result != null && result.errorCode() != null ? result.errorCode() : "");
+        metrics.stop(timer, "datagate.query.duration", "status", status, "errorCode", ec);
+        if (result != null && result.status() != ExecutionStatus.SUCCEEDED) {
+            metrics.increment("datagate.query.failed", "status", status);
+        }
+    }
+
     /** 拒绝路径：返回 REJECTED 元数据 + 写拒绝审计 */
     private ExecutionResultMeta reject(QueryExecutionRequest req, AuditResult auditResult,
                                        String errorCode, String reason, DbDataSource ds,
@@ -437,8 +453,10 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
                 log.warn("拒绝审计写入失败", e);
             }
         }
-        return buildMeta(UUID.randomUUID().toString(), ExecutionStatus.REJECTED, startedAt,
+        ExecutionResultMeta m = buildMeta(UUID.randomUUID().toString(), ExecutionStatus.REJECTED, startedAt,
             0, 0, false, errorCode);
+        recordMetrics(null, m, errorCode);
+        return m;
     }
 
     /** 审计后抛异常（用于无法返回 REJECTED 而必须中断的路径） */
@@ -446,6 +464,8 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
                                              String message, AuditResult auditResult, Instant startedAt,
                                              String fingerprint, String decisionId) {
         reject(req, auditResult, code.name(), message, ds, fingerprint, startedAt);
+        metrics.increment("datagate.query.rejected", "errorCode", code.name());
+        metrics.queryEnded();
         return new DbServiceException(code, message);
     }
 

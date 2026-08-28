@@ -80,6 +80,7 @@ public class ExportJobServiceImpl implements ExportJobService {
     private final Optional<ResourcePathResolver> pathResolver;
     private final Optional<EncryptedObjectStore> objectStore;
     private final AuthorizationDecisionService decisionService;
+    private final java.util.Optional<org.dromara.db.core.spi.FeatureGateService> featureGateService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -87,6 +88,9 @@ public class ExportJobServiceImpl implements ExportJobService {
         Long applicantId = LoginHelper.getUserId();
         if (applicantId.equals(bo.getOwnerApproverId()) || applicantId.equals(bo.getDbaApproverId())) {
             throw new ServiceException("申请人不能审批本人申请（docs/03 §9）");
+        }
+        if (featureGateService.isPresent() && !featureGateService.get().isEnabled(org.dromara.db.core.enums.FeatureGate.EXPORT, bo.getDataSourceId())) {
+            throw new ServiceException("导出功能未灰度开放（docs/09 §14.3）");
         }
         // 解析数据源 + 连接器
         DbDataSource ds = dataSourceService.queryById(bo.getDataSourceId());

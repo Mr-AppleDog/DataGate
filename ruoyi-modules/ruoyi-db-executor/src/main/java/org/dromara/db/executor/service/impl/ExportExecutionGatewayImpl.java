@@ -62,23 +62,28 @@ public class ExportExecutionGatewayImpl implements ExportExecutionGateway {
     private final ConnectorRegistry connectorRegistry;
     private final Optional<EncryptedObjectStore> objectStore;
     private final IAuditService auditService;
+    private final org.dromara.db.executor.support.DatagateMetrics metrics;
 
     public ExportExecutionGatewayImpl(IDbDataSourceService dataSourceService,
                                       ICredentialVaultService credentialVaultService,
                                       ConnectorRegistry connectorRegistry,
                                       Optional<EncryptedObjectStore> objectStore,
-                                      IAuditService auditService) {
+                                      IAuditService auditService,
+                                      org.dromara.db.executor.support.DatagateMetrics metrics) {
         this.dataSourceService = dataSourceService;
         this.credentialVaultService = credentialVaultService;
         this.connectorRegistry = connectorRegistry;
         this.objectStore = objectStore;
         this.auditService = auditService;
+        this.metrics = metrics;
     }
 
     @Override
     public ExportResult execute(ExportExecutionRequest req) {
         long start = System.nanoTime();
         String executionNo = "export-" + UUID.randomUUID();
+        io.micrometer.core.instrument.Timer.Sample timer = metrics.start();
+        metrics.exportStarted();
 
         if (req == null || req.statement() == null || req.statement().isBlank()) {
             return ExportResult.failed(executionNo, DbErrorCode.QUERY_PARSE_FAILED.name(), durationMs(start));
@@ -165,13 +170,19 @@ public class ExportExecutionGatewayImpl implements ExportExecutionGateway {
             try (InputStream tempIn = Files.newInputStream(temp)) {
                 EncryptedObject obj = store.create(tempIn, csvBytes);
                 auditExport(req, ds, AuditResult.SUCCESS, "EXPORT_EXECUTE", null, rowCount, csvBytes);
-                return new ExportResult(executionNo, ExecutionStatus.SUCCEEDED, rowCount, csvBytes,
+                ExportResult ok = new ExportResult(executionNo, ExecutionStatus.SUCCEEDED, rowCount, csvBytes,
                     obj.objectKey(), obj.fileHash(), obj.encryptionKeyRef(), null, durationMs(start));
+                metrics.stop(timer, "datagate.export.duration", "status", "SUCCEEDED");
+                metrics.exportEnded();
+                return ok;
             }
         } catch (Exception e) {
             log.warn("导出执行异常 jobId={}", req.jobId(), e);
             auditExport(req, ds, AuditResult.FAILURE, "EXPORT_EXECUTE_FAILED",
                 DbErrorCode.INTERNAL_ERROR.name(), 0, 0);
+            metrics.stop(timer, "datagate.export.duration", "status", "FAILED", "errorCode", DbErrorCode.INTERNAL_ERROR.name());
+            metrics.increment("datagate.export.failed", "errorCode", DbErrorCode.INTERNAL_ERROR.name());
+            metrics.exportEnded();
             return ExportResult.failed(executionNo, DbErrorCode.INTERNAL_ERROR.name(), durationMs(start));
         } finally {
             if (temp != null) {

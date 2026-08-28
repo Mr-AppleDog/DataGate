@@ -33,6 +33,7 @@ import java.util.UUID;
 public class AuditServiceImpl implements IAuditService {
 
     private final AuditEventMapper auditEventMapper;
+    private final java.util.Optional<io.micrometer.core.instrument.MeterRegistry> meterRegistry;
 
     /**
      * 追加审计事件。任何异常向上抛出，调用方（高风险动作）失败关闭。
@@ -53,6 +54,17 @@ public class AuditServiceImpl implements IAuditService {
     }
 
     private String doAppend(AuditEventInput input) {
+        try {
+            String eventId = doAppendInternal(input);
+            meterRegistry.ifPresent(r -> r.counter("datagate.audit.write", "category", input.category().name()).increment());
+            return eventId;
+        } catch (RuntimeException e) {
+            meterRegistry.ifPresent(r -> r.counter("datagate.audit.write.failed", "category", input.category().name()).increment());
+            throw e;
+        }
+    }
+
+    private String doAppendInternal(AuditEventInput input) {
         // 截断到微秒：与 PostgreSQL timestamptz 精度对齐，保证哈希链校验可重算
         Instant occurredAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
         String chainKey = AuditHashChain.chainKeyOf(occurredAt);
@@ -118,6 +130,32 @@ public class AuditServiceImpl implements IAuditService {
             expectedPrevious = e.getEventHash();
         }
         return new AuditChainVerification(chainKey, events.size(), true, null);
+    }
+
+    /**
+     * 校验分片范围（归档完整性复核，M6-03）：迭代 UTC 日分片逐个 verifyChain。
+     */
+    @Override
+    public java.util.List<AuditChainVerification> verifyChainRange(String fromChainKey, String toChainKey) {
+        java.util.List<AuditChainVerification> results = new java.util.ArrayList<>();
+        for (String chainKey : chainKeysBetween(fromChainKey, toChainKey)) {
+            results.add(verifyChain(chainKey));
+        }
+        return results;
+    }
+
+    /**
+     * 列出 [from, to] 闭区间内的 UTC 日分片键（yyyyMMdd）。纯函数，可单测。
+     */
+    static java.util.List<String> chainKeysBetween(String fromChainKey, String toChainKey) {
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd");
+        java.time.LocalDate from = java.time.LocalDate.parse(fromChainKey, fmt);
+        java.time.LocalDate to = java.time.LocalDate.parse(toChainKey, fmt);
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        for (java.time.LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+            keys.add(d.format(fmt));
+        }
+        return keys;
     }
 
     /**

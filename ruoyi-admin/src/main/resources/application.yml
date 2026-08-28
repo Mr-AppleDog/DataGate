@@ -226,6 +226,32 @@ lock4j:
   # 分布式锁的超时时间，默认为 30 秒
   expire: 30000
 
+--- # 优雅停机与 readiness（docs/09 §11，M6-01b）
+server:
+  shutdown: graceful
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 60s
+management:
+  health:
+    probes:
+      enabled: true
+
+--- # 功能开关（docs/09 §14.3 灰度；安全规则不在此，不得永久关闭）
+datagate:
+  feature:
+    defaults:
+      connector-mysql: true
+      connector-postgresql: true
+      connector-redis: true
+      export: true
+      change-dml: true
+      change-ddl: true
+      redis-write: true
+      emergency-access: true
+      parser-new-version: true
+    overrides: {}
+
 --- # Actuator 监控端点的配置项
 management:
   endpoints:

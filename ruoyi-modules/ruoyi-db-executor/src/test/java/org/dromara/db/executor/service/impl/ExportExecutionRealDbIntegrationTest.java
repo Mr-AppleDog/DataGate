@@ -101,7 +101,8 @@ class ExportExecutionRealDbIntegrationTest {
     @DisplayName("导出 SELECT phone → 加密对象落地 + 解密 CSV 含脱敏值 138****5678")
     void exportStreamsMaskedToEncryptedObject() {
         ExportExecutionGatewayImpl gw = new ExportExecutionGatewayImpl(
-            stubDs(), stubVault(), new ConnectorRegistry(List.of(new MysqlConnector())), Optional.of(store), stubAudit());
+            stubDs(), stubVault(), new ConnectorRegistry(List.of(new MysqlConnector()), java.util.Optional.empty()), Optional.of(store), stubAudit(),
+            new org.dromara.db.executor.support.DatagateMetrics(java.util.Optional.empty()));
         String sql = "SELECT phone FROM " + TABLE;
         ExportExecutionRequest req = new ExportExecutionRequest(
             1L, 1L, null, null, 100L, DB, null, sql, List.of(), "dec-1",
