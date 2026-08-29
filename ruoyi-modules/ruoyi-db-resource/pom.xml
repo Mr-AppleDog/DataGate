@@ -42,6 +42,12 @@
             <artifactId>ruoyi-common-satoken</artifactId>
         </dependency>
 
+        <!-- RES-005：同一数据源元数据同步互斥，防止多节点/重复点击并发写目录 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-common-redis</artifactId>
+        </dependency>
+
         <!-- 授权引擎端口：ResourceHierarchyResolver 实现（祖先继承，M2-02 接通） -->
         <dependency>
             <groupId>org.dromara</groupId>

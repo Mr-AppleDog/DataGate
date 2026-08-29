@@ -2,6 +2,27 @@
 <div style="height: 10px; clear: both;"></div>
 
 - - -
+
+## DataGate 本地开发快速启动
+
+首次克隆后只需初始化一次本机开发 KEK。脚本会在**当前用户目录**生成随机 AES-256 密钥，文件位于仓库之外；已有文件只校验，绝不会覆盖。
+
+Windows PowerShell：
+
+```powershell
+.\script\datagate\init-dev-kek.ps1
+```
+
+Linux / macOS：
+
+```bash
+bash ./script/datagate/init-dev-kek.sh
+```
+
+随后直接用 IntelliJ IDEA 运行 `org.dromara.DromaraApplication`，或按项目现有 Maven 方式启动。`dev` 配置默认读取 `${user.home}/.datagate/kek.txt`，不再依赖仓库作者的用户名，也不需要设置环境变量。
+
+如需使用其他安全路径，可设置 `DATAGATE_KEK_FILE`。开发脚本生成的密钥仅供本机试用；不要提交或分享。生产环境必须通过只读 Secret 挂载提供独立 KEK，密钥缺失时应用仍会失败关闭（CRED-003）。
+
 ## 平台简介
 
 [![码云Gitee](https://gitee.com/dromara/RuoYi-Vue-Plus/badge/star.svg?theme=blue)](https://gitee.com/dromara/RuoYi-Vue-Plus)

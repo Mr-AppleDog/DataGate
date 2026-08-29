@@ -1,0 +1,24 @@
+{
+  "checkedAtRange": "2026-08-30T03:00:21+08:00/2026-08-30T03:01:37+08:00",
+  "caseId": "ST-QRY-004",
+  "browser": "Microsoft Edge with Codex extension",
+  "action": "Click the visible cancel control for a terminal rejected execution.",
+  "expected": "Idempotently accept cancellation or return the current terminal state.",
+  "observed": {
+    "attempts": 4,
+    "acceptedAttempts": 0,
+    "clientMethod": "POST",
+    "serverDiagnostic": "Request method POST is not supported",
+    "visibleSuccessFeedback": false,
+    "stableErrorFeedback": false
+  },
+  "status": "FAIL",
+  "defectId": "DEF-QRY-002",
+  "sourceCorrelation": [
+    "plus-ui/src/api/db/console.ts:58-62 sends POST /db/console/cancel/{executionNo}.",
+    "DbConsoleController.java:61-64 accepts only GET for that route.",
+    "docs/05-API错误码与状态机规范.md:120,139-145 specifies DELETE and idempotent terminal-state behavior."
+  ],
+  "screenshot": "query-cancel-no-feedback.png",
+  "redaction": "Execution identifiers, endpoints, private hosts, credentials, tokens, cookies, and unrelated logs are not retained."
+}

@@ -1,0 +1,12 @@
+{
+  "case_id": "ST-RES-007",
+  "final_url": "http://localhost/data-assets/datasources",
+  "action": "retry search after service recovery",
+  "expected": "Only the matching row is visible and total is 1",
+  "observed_visible_row_names": [
+    "smoke-mysql"
+  ],
+  "observed_visible_row_count": 1,
+  "observed_total": "共 1 条",
+  "cleanup": "none; read-only"
+}

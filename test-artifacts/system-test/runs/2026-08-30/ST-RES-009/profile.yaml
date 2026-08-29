@@ -1,0 +1,48 @@
+platform:
+  name: "DataGate"
+  repository_root: "E:/github-reposit/DataGate"
+  documentation:
+    - "docs/04-数据模型与数据库表设计.md"
+    - "docs/05-API错误码与状态机规范.md:28"
+    - "docs/08-安全审计与威胁模型.md"
+
+environment:
+  kind: "local"
+  base_url: "http://localhost"
+  api_base_url: "http://localhost/dev-api"
+  build_or_commit: "8e94aea"
+  startup_command: "already running"
+
+api:
+  auth_method: "unauthenticated negative check; no browser credentials exported"
+  client_or_harness: "PowerShell Invoke-WebRequest"
+  safe_mutations_allowed: false
+  redaction_rules: ["authorization", "cookie", "password", "token", "secret", "personal-data", "private-host", "ciphertext", "nonce"]
+
+browser:
+  family: "edge"
+  use_existing_session: true
+  route: "/data-assets/column-profile"
+
+authorization:
+  permitted_roles: ["existing authenticated administrator session"]
+  forbidden_actions: ["edit masking profile", "change classification", "session export"]
+  production_writes_allowed: false
+
+issue_tracking:
+  provider: "github"
+  repository: "Mr-AppleDog/DataGate"
+  mode: "submit_authorized"
+  duplicate_reference: "Issue #1 covers the observed generic authentication HTTP mapping symptom"
+
+scope:
+  run_mode: "focused feature"
+  module: "column masking profile read view"
+  critical_journeys: ["authorized column masking metadata view and empty state"]
+  included_areas: ["unauthenticated column profile denial", "administrator empty-state view"]
+  excluded_areas: ["profile updates", "masking rule changes", "data query/export"]
+  test_data: "existing table resource ID 1; no mutation"
+
+evidence:
+  output_directory: "E:/github-reposit/DataGate/test-artifacts/system-test/runs/2026-08-30/ST-RES-009"
+  redact: ["credentials", "tokens", "personal-data", "cookies", "session-storage", "private-host", "password", "ciphertext", "nonce"]

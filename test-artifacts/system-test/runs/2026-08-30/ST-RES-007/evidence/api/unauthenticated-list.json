@@ -1,0 +1,11 @@
+{
+  "case_id": "ST-RES-007",
+  "timestamp": "2026-08-29T18:05:36.4968752Z",
+  "method": "GET",
+  "endpoint": "/dev-api/db/datasource/list?pageSize=10&pageNum=1",
+  "authentication": "none",
+  "expected": "HTTP 401 with stable authentication response and no resource names",
+  "observed_http_status": 500,
+  "content_type": "text/plain",
+  "response_body_redacted": ""
+}

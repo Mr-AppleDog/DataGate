@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-08-30T02:54:00+08:00",
+  "caseId": "ST-QRY-001",
+  "browser": "Microsoft Edge with Codex extension",
+  "route": "/db/console",
+  "observed": {
+    "workbenchVisible": true,
+    "activeDataSourceOptionCount": 2,
+    "optionFieldsRetained": ["display name", "engine type"],
+    "credentialFieldsVisible": false,
+    "ciphertextOrNonceVisible": false
+  },
+  "status": "PASS",
+  "screenshot": "query-workbench-entry.png",
+  "redaction": "Data-source endpoints, private hosts, account/session values, credentials, tokens, and cookies were not retained."
+}

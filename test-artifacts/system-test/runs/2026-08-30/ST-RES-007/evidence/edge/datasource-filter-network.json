@@ -1,0 +1,9 @@
+{
+  "case_id": "ST-RES-007",
+  "method": "GET",
+  "endpoint": "/dev-api/db/datasource/list?pageNum=1&pageSize=10&name=<redacted-resource>",
+  "observed_http_status": 200,
+  "observed_response_code": 200,
+  "observed_total": 1,
+  "observed_row_count": 1
+}

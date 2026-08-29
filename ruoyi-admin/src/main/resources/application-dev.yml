@@ -45,7 +45,7 @@ spring:
         master:
           type: ${spring.datasource.type}
           driverClassName: org.postgresql.Driver
-          url: jdbc:postgresql://192.168.149.128:5432/datagate?stringtype=unspecified&currentSchema=public
+          url: jdbc:postgresql://100.113.245.88:5432/datagate?stringtype=unspecified&currentSchema=public
           username: postgres
           password: mrlu
       hikari:
@@ -68,7 +68,7 @@ spring:
 spring.data:
   redis:
     # 地址
-    host: 192.168.149.128
+    host: 100.113.245.88
     # 端口，默认为6379
     port: 6379
     # 数据库索引
@@ -123,9 +123,14 @@ justauth:
 --- # DataGate 安全底座（M1）
 datagate:
   security:
+    datasource-network:
+      # 开发/学习环境开箱即用：RFC1918 私网 + Tailscale/CGNAT 组网段。
+      # 可通过 DATAGATE_DATASOURCE_ALLOWED_CIDRS 覆盖；回环、链路本地和云元数据地址始终拒绝。
+      allowed-cidrs: ${DATAGATE_DATASOURCE_ALLOWED_CIDRS:10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10}
     credential:
-      # 开发环境本地 KEK 文件（仅开发用，生产必须为只读 Secret 挂载；本路径不得进 Git）
-      kek-file: ${DATAGATE_KEK_FILE:C:\\Users\\cxy784853792\\.datagate\\kek.txt}
+      # 开发环境默认读取当前用户目录；首次使用运行 script/datagate/init-dev-kek.ps1 或 .sh。
+      # 生产必须通过 DATAGATE_KEK_FILE 指向只读 Secret 挂载，本文件及真实 KEK 均不得进入 Git。
+      kek-file: ${DATAGATE_KEK_FILE:${user.home}/.datagate/kek.txt}
 
 --- # 关闭验证码（开发冒烟用；生产不得关闭）
 captcha:

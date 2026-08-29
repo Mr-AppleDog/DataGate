@@ -1,9 +1,12 @@
 package org.dromara.db.resource.support;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -13,6 +16,7 @@ import java.util.regex.Pattern;
  * <p>规则：</p>
  * <ul>
  *   <li>host 只允许字面量 IP 或可解析的 DNS 名（校验期解析并检查全部解析结果）；</li>
+ *   <li>解析出的每个地址都必须属于配置的公司/审批允许网段；空配置失败关闭；</li>
  *   <li>拒绝回环、链路本地、组播、未指定地址、云元数据地址（169.254.169.254）；</li>
  *   <li>协议/驱动由平台固定，用户不能提交任意 JDBC URL（结构化字段保证）；</li>
  *   <li>端口范围 1-65535。</li>
@@ -35,6 +39,16 @@ public class NetworkAddressValidator {
         "169.254.169.254",
         "100.100.100.100"
     );
+
+    private final List<CidrRange> allowedCidrs;
+
+    /**
+     * 允许网段由环境配置注入；空配置保持失败关闭。生产环境必须显式配置公司/审批网段。
+     */
+    public NetworkAddressValidator(
+        @Value("${datagate.security.datasource-network.allowed-cidrs:}") String allowedCidrs) {
+        this.allowedCidrs = parseAllowedCidrs(allowedCidrs);
+    }
 
     /**
      * 校验结果
@@ -139,12 +153,8 @@ public class NetworkAddressValidator {
             if (first == 169 && (v4.getAddress()[1] & 0xFF) == 254) {
                 return false;
             }
-            // CGNAT 100.64.0.0/10 默认不放行（云内网穿透地址段）
-            if (first == 100 && ((v4.getAddress()[1] & 0xFF) >= 64 && (v4.getAddress()[1] & 0xFF) <= 127)) {
-                return false;
-            }
         }
-        return true;
+        return allowedCidrs.stream().anyMatch(range -> range.matches(addr));
     }
 
     private boolean isLiteralIp(String host) {
@@ -153,5 +163,67 @@ public class NetworkAddressValidator {
             return true;
         }
         return host.contains(":");
+    }
+
+    private List<CidrRange> parseAllowedCidrs(String configuredCidrs) {
+        if (configuredCidrs == null || configuredCidrs.isBlank()) {
+            return List.of();
+        }
+        List<CidrRange> ranges = new ArrayList<>();
+        for (String item : configuredCidrs.split(",")) {
+            String cidr = item.trim();
+            if (!cidr.isEmpty()) {
+                ranges.add(CidrRange.parse(cidr));
+            }
+        }
+        return List.copyOf(ranges);
+    }
+
+    /**
+     * IPv4/IPv6 CIDR 匹配。配置只接受 IP 字面量，避免启动时引入 DNS 信任。
+     */
+    private record CidrRange(byte[] network, int prefixLength) {
+
+        private static CidrRange parse(String value) {
+            try {
+                String[] parts = value.split("/", -1);
+                if (parts.length > 2 || parts[0].isBlank()
+                    || (!parts[0].matches("^\\d{1,3}(\\.\\d{1,3}){3}$") && !parts[0].contains(":"))) {
+                    throw new IllegalArgumentException("数据源允许网段必须使用 IP/CIDR: " + value);
+                }
+                InetAddress address = InetAddress.getByName(parts[0]);
+                int bitLength = address.getAddress().length * 8;
+                int prefix = parts.length == 1 ? bitLength : Integer.parseInt(parts[1]);
+                if (prefix < 0 || prefix > bitLength) {
+                    throw new IllegalArgumentException("数据源允许网段掩码非法: " + value);
+                }
+                byte[] network = address.getAddress().clone();
+                applyMask(network, prefix);
+                return new CidrRange(network, prefix);
+            } catch (IllegalArgumentException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IllegalArgumentException("数据源允许网段配置非法: " + value, e);
+            }
+        }
+
+        private boolean matches(InetAddress address) {
+            byte[] candidate = address.getAddress().clone();
+            if (candidate.length != network.length) {
+                return false;
+            }
+            applyMask(candidate, prefixLength);
+            return Arrays.equals(network, candidate);
+        }
+
+        private static void applyMask(byte[] bytes, int prefixLength) {
+            int fullBytes = prefixLength / 8;
+            int remainingBits = prefixLength % 8;
+            if (remainingBits > 0 && fullBytes < bytes.length) {
+                bytes[fullBytes] = (byte) (bytes[fullBytes] & (0xFF << (8 - remainingBits)));
+                fullBytes++;
+            }
+            Arrays.fill(bytes, fullBytes, bytes.length, (byte) 0);
+        }
     }
 }

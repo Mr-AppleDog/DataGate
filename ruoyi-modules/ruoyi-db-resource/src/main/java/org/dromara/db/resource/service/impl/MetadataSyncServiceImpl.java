@@ -29,6 +29,8 @@ import org.dromara.db.resource.registry.ConnectorRegistry;
 import org.dromara.db.resource.service.ICredentialVaultService;
 import org.dromara.db.resource.service.IMetadataSyncService;
 import org.dromara.db.resource.support.NetworkAddressValidator;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -36,6 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +55,8 @@ import java.util.Set;
 @Service
 public class MetadataSyncServiceImpl implements IMetadataSyncService {
 
+    private static final String SYNC_LOCK_PREFIX = "datagate:metadata-sync:";
+
     private final DbDataSourceMapper dataSourceMapper;
     private final DbResourceMapper resourceMapper;
     private final DbMetadataSyncJobMapper syncJobMapper;
@@ -59,6 +64,7 @@ public class MetadataSyncServiceImpl implements IMetadataSyncService {
     private final ICredentialVaultService credentialVaultService;
     private final NetworkAddressValidator networkAddressValidator;
     private final IAuditService auditService;
+    private final RedissonClient redissonClient;
     private final TransactionTemplate txTemplate;
 
     public MetadataSyncServiceImpl(DbDataSourceMapper dataSourceMapper,
@@ -68,6 +74,7 @@ public class MetadataSyncServiceImpl implements IMetadataSyncService {
                                    ICredentialVaultService credentialVaultService,
                                    NetworkAddressValidator networkAddressValidator,
                                    IAuditService auditService,
+                                   RedissonClient redissonClient,
                                    PlatformTransactionManager transactionManager) {
         this.dataSourceMapper = dataSourceMapper;
         this.resourceMapper = resourceMapper;
@@ -76,11 +83,38 @@ public class MetadataSyncServiceImpl implements IMetadataSyncService {
         this.credentialVaultService = credentialVaultService;
         this.networkAddressValidator = networkAddressValidator;
         this.auditService = auditService;
+        this.redissonClient = redissonClient;
         this.txTemplate = new TransactionTemplate(transactionManager);
     }
 
     @Override
     public DbMetadataSyncJob syncNow(Long dataSourceId) {
+        RLock lock = redissonClient.getLock(SYNC_LOCK_PREFIX + dataSourceId);
+        final boolean locked;
+        try {
+            // 不等待：前端应立即获知已有同步任务，而不是再次占用请求线程。
+            // 无租约参数时由 Redisson watchdog 自动续期，适配大型目录的长时间扫描。
+            locked = lock.tryLock();
+        } catch (Exception e) {
+            throw new DbServiceException(DbErrorCode.QUERY_ENGINE_UNAVAILABLE, "元数据同步协调服务不可用，请稍后重试");
+        }
+        if (!locked) {
+            throw new DbServiceException(DbErrorCode.RESOURCE_STATE_CONFLICT, "该数据源正在同步元数据，请等待当前任务完成");
+        }
+        try {
+            return syncUnderLock(dataSourceId);
+        } finally {
+            try {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            } catch (Exception ignored) {
+                // 同步结果已经持久化时不因释放锁链路的瞬态故障改写结果；watchdog 租约会自动过期。
+            }
+        }
+    }
+
+    private DbMetadataSyncJob syncUnderLock(Long dataSourceId) {
         DbDataSource ds = dataSourceMapper.selectById(dataSourceId);
         if (ds == null) {
             throw new DbServiceException(DbErrorCode.AUTH_RESOURCE_UNDISCOVERABLE);
@@ -197,11 +231,8 @@ public class MetadataSyncServiceImpl implements IMetadataSyncService {
         Set<String> seenPaths = new HashSet<>();
         int found = 0;
         int updated = 0;
-        for (ResourceNode node : nodes) {
+        for (ResourceNode node : distinctNodes(nodes)) {
             String path = node.canonicalPath();
-            if (path.length() > 2000) {
-                continue;
-            }
             seenPaths.add(path);
             DbResource current = byPath.get(path);
             if (current == null) {
@@ -220,6 +251,7 @@ public class MetadataSyncServiceImpl implements IMetadataSyncService {
                 insert.setLastSeenAt(now);
                 insert.setCreateTime(now);
                 resourceMapper.insert(insert);
+                byPath.put(path, insert);
                 idByPath.put(path, insert.getId());
                 found++;
             } else {
@@ -265,6 +297,21 @@ public class MetadataSyncServiceImpl implements IMetadataSyncService {
         job.setFoundCount(found);
         job.setUpdatedCount(updated);
         job.setDroppedCount(dropped);
+    }
+
+    /**
+     * 部分 MySQL 兼容引擎的 information_schema 会返回重复目录行。
+     * 保留首次出现的节点，确保同一轮同步对规范路径只执行一次写入。
+     */
+    static List<ResourceNode> distinctNodes(List<ResourceNode> nodes) {
+        Map<String, ResourceNode> byCanonicalPath = new LinkedHashMap<>();
+        for (ResourceNode node : nodes) {
+            String path = node.canonicalPath();
+            if (path.length() <= 2000) {
+                byCanonicalPath.putIfAbsent(path, node);
+            }
+        }
+        return List.copyOf(byCanonicalPath.values());
     }
 
     @Override
