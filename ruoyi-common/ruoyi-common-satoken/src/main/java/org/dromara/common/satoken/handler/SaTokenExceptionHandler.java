@@ -5,6 +5,7 @@ import cn.dev33.satoken.exception.NotPermissionException;
 import cn.dev33.satoken.exception.NotRoleException;
 import cn.hutool.http.HttpStatus;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.dromara.common.core.domain.R;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -41,11 +42,18 @@ public class SaTokenExceptionHandler {
 
     /**
      * 认证失败
+     *
+     * @param e 异常
+     * @param request 当前请求
+     * @param response 当前响应
+     * @return 统一认证失败响应
      */
     @ExceptionHandler(NotLoginException.class)
-    public R<Void> handleNotLoginException(NotLoginException e, HttpServletRequest request) {
+    public R<Void> handleNotLoginException(NotLoginException e, HttpServletRequest request,
+                                           HttpServletResponse response) {
         String requestURI = request.getRequestURI();
         log.error("请求地址'{}',认证失败'{}',无法访问系统资源", requestURI, e.getMessage());
+        response.setStatus(HttpStatus.HTTP_UNAUTHORIZED);
         return R.fail(HttpStatus.HTTP_UNAUTHORIZED, "认证失败，无法访问系统资源");
     }
 

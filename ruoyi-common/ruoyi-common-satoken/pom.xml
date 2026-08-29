@@ -46,6 +46,13 @@
             <artifactId>spring-webmvc</artifactId>
         </dependency>
 
+        <!-- 认证异常 HTTP 状态契约回归测试（RES-006、docs/05） -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
 </project>
