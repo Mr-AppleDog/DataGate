@@ -10,5 +10,10 @@ public enum SubjectType {
 
     USER,
     DEPT,
-    GROUP
+    GROUP,
+
+    /**
+     * 平台角色。仅显式写入资源授权表的角色可获得数据权限，角色名称本身不触发隐藏放行。
+     */
+    ROLE
 }

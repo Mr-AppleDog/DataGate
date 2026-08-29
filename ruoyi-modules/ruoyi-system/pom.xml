@@ -28,6 +28,12 @@
             <artifactId>ruoyi-db-core</artifactId>
         </dependency>
 
+        <!-- DataGate 授权主体归属 SPI：由 system 提供部门/角色解析实现 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-db-auth</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-db-audit</artifactId>

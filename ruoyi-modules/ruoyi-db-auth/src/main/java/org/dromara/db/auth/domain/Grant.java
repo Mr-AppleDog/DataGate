@@ -56,7 +56,7 @@ public class Grant implements Serializable {
     private String tenantId;
 
     /**
-     * 授权主体类型（USER/DEPT/GROUP，docs/03 第 5.2 节）
+     * 授权主体类型（USER/DEPT/GROUP/ROLE，docs/03 第 5.2 节）
      */
     private SubjectType subjectType;
 
@@ -66,9 +66,14 @@ public class Grant implements Serializable {
     private Long subjectId;
 
     /**
-     * 目标资源 ID（授权始终引用不可变 resource_id，docs/03 第 3.1 节）
+     * 目标资源 ID。RESOURCE 范围必须引用不可变 resource_id；GLOBAL 范围为 null。
      */
     private Long resourceId;
+
+    /**
+     * 授权资源范围：RESOURCE 为指定资源及其后代，GLOBAL 为租户内全部数据库资源。
+     */
+    private String scopeType;
 
     /**
      * 资源动作（docs/03 第 4 节；动作不自动包含其他动作）

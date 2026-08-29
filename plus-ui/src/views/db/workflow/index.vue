@@ -1,10 +1,19 @@
 <template>
   <div class="p-2">
+    <el-alert
+      v-if="isDataGateDba"
+      class="mb-2"
+      title="DataGate DBA 已拥有全局数据库访问权限，无需再申请查询权限"
+      description="导出、DML、DDL 和 Redis 写操作仍按安全规则走独立工单与审计。"
+      type="success"
+      show-icon
+      :closable="false"
+    />
     <el-card shadow="hover">
       <template #header>
         <el-row :gutter="10">
           <el-col :span="1.5">
-            <el-button type="primary" plain icon="Plus" @click="handleApply">申请权限</el-button>
+            <el-button v-if="!isDataGateDba" type="primary" plain icon="Plus" @click="handleApply">申请权限</el-button>
           </el-col>
           <el-col :span="1.5">
             <el-button icon="Refresh" @click="getList">刷新</el-button>
@@ -125,6 +134,7 @@ import { useUserStore } from '@/store/modules/user';
 
 const userStore = useUserStore();
 const currentUserId = computed(() => Number(userStore.userId));
+const isDataGateDba = computed(() => userStore.roles.includes('dba'));
 
 const loading = ref(false);
 const submitting = ref(false);
@@ -245,6 +255,10 @@ const getList = async () => {
 };
 
 const handleApply = () => {
+  if (isDataGateDba.value) {
+    ElMessage.info('DataGate DBA 已拥有全局查询权限，无需申请');
+    return;
+  }
   Object.assign(applyForm, initApplyForm());
   resourceOptions.value = [];
   dialog.visible = true;

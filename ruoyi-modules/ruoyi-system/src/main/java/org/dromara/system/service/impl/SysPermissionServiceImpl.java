@@ -36,9 +36,9 @@ public class SysPermissionServiceImpl implements ISysPermissionService, Permissi
         // 管理员拥有所有权限
         if (LoginHelper.isSuperAdmin(userId)) {
             roles.add(TenantConstants.SUPER_ADMIN_ROLE_KEY);
-        } else {
-            roles.addAll(roleService.selectRolePermissionByUserId(userId));
         }
+        // 返回用户实际绑定的角色；超管也需要暴露 dba 等 DataGate 业务角色。
+        roles.addAll(roleService.selectRolePermissionByUserId(userId));
         return roles;
     }
 
