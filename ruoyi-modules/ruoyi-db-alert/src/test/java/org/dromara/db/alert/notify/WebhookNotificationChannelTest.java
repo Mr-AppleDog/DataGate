@@ -17,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 @DisplayName("Webhook 通道安全校验")
 class WebhookNotificationChannelTest {
 
-    private final WebhookNotificationChannel channel = new WebhookNotificationChannel();
+    private final WebhookNotificationChannel channel = new WebhookNotificationChannel(() -> {
+        throw new AssertionError("校验失败时不应初始化 HTTP 客户端");
+    });
 
     private DbNotificationChannel ch(String config) {
         DbNotificationChannel c = new DbNotificationChannel();

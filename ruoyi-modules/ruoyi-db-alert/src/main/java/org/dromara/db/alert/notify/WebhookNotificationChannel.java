@@ -16,6 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * 通用 HTTPS Webhook 通知通道（docs/07 §9.2）。
@@ -29,7 +31,16 @@ import java.util.Map;
 public class WebhookNotificationChannel implements NotificationChannel {
 
     private static final ObjectMapper OM = new ObjectMapper();
-    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+    private final Supplier<HttpClient> clientFactory;
+    private volatile HttpClient client;
+
+    public WebhookNotificationChannel() {
+        this(() -> HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
+    }
+
+    WebhookNotificationChannel(Supplier<HttpClient> clientFactory) {
+        this.clientFactory = Objects.requireNonNull(clientFactory, "clientFactory");
+    }
 
     @Override
     public String type() {
@@ -61,7 +72,7 @@ public class WebhookNotificationChannel implements NotificationChannel {
         if (!signature.isEmpty()) {
             rb.header("X-Datagate-Signature", signature);
         }
-        HttpResponse<String> resp = client.send(rb.build(), HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> resp = client().send(rb.build(), HttpResponse.BodyHandlers.ofString());
         int code = resp.statusCode();
         String summary = truncate(resp.body(), 500);
         if (code >= 200 && code < 300) {
@@ -101,6 +112,20 @@ public class WebhookNotificationChannel implements NotificationChannel {
         } catch (Exception e) {
             return Map.of();
         }
+    }
+
+    private HttpClient client() {
+        HttpClient current = client;
+        if (current == null) {
+            synchronized (this) {
+                current = client;
+                if (current == null) {
+                    current = clientFactory.get();
+                    client = current;
+                }
+            }
+        }
+        return current;
     }
 
     private String sign(SecretValue secret, String data) {
