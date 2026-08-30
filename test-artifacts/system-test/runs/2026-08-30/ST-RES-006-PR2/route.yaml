@@ -1,0 +1,37 @@
+route_state: ROUTED
+repository: Mr-AppleDog/DataGate
+github_read_channel: approved_host
+issue_number: 1
+pr_number: 2
+test_run_id: ST-RES-006
+tested_commit: 8e94aea
+assessor:
+  task_id: 01a050f0-b736-7030-a881-981b81cea7a9
+  model: gpt-5.6-sol
+  reasoning_effort: xhigh
+  service_tier: priority
+assessment:
+  score: 35
+  dimensions:
+    complexity: 1
+    ambiguity: 0
+    risk: 3
+    context_size: 2
+    verification_cost: 2
+    coordination: 2
+  risk_flags:
+    - authentication_security_boundary
+    - existing_pr_ci_repair
+route:
+  worker_task_id: 01a050f5-7112-7762-8846-6452fab7051e
+  model: gpt-5.6-sol
+  reasoning_effort: high
+  thinking: high
+  service_tier: default
+  execution: single
+  review: read-only-reviewer
+reviewer:
+  task_id: 01a050fa-d915-7ef0-b068-ca275b06c84a
+  model: gpt-5.6-sol
+  reasoning_effort: xhigh
+fallback: null
