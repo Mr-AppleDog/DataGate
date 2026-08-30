@@ -239,6 +239,7 @@ class QueryExecutionGatewayImplTest {
         @Override public String append(AuditEventInput input) { appended.add(input); return "e" + appended.size(); }
         @Override public String appendIsolated(AuditEventInput input) { isolated.add(input); return "i" + isolated.size(); }
         @Override public AuditChainVerification verifyChain(String chainKey) { return new AuditChainVerification(chainKey, 0, true, null); }
+        @Override public List<AuditChainVerification> verifyChainRange(String fromChainKey, String toChainKey) { throw new UnsupportedOperationException(); }
     }
 
     static class StubPathResolver implements ResourcePathResolver {

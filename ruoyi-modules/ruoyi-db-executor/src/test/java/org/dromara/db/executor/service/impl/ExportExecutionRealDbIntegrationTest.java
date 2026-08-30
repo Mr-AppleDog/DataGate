@@ -160,6 +160,7 @@ class ExportExecutionRealDbIntegrationTest {
             public String append(AuditEventInput i) { return "e1"; }
             public String appendIsolated(AuditEventInput i) { return "i1"; }
             public AuditChainVerification verifyChain(String k) { return new AuditChainVerification(k, 0, true, null); }
+            @Override public List<AuditChainVerification> verifyChainRange(String fromChainKey, String toChainKey) { throw new UnsupportedOperationException(); }
         };
     }
 }

@@ -142,5 +142,6 @@ class ChangeExecutionGatewayImplTest {
         @Override public String append(AuditEventInput input) { return "e1"; }
         @Override public String appendIsolated(AuditEventInput input) { return "i1"; }
         @Override public AuditChainVerification verifyChain(String chainKey) { return new AuditChainVerification(chainKey, 0, true, null); }
+        @Override public List<AuditChainVerification> verifyChainRange(String fromChainKey, String toChainKey) { throw new UnsupportedOperationException(); }
     }
 }
