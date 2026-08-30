@@ -1,0 +1,33 @@
+repository: Mr-AppleDog/DataGate
+pr_number: 2
+pr_url: https://github.com/Mr-AppleDog/DataGate/pull/2
+branch: codex/issue-1-http-status
+tested_commit: 437dea36f4f74400e998401a8bfaa1b2d98d293d
+test_run_id: ST-RES-006-PR2
+requirement_ids: [RES-006]
+status: BLOCKED
+original_case:
+  status: BLOCKED
+  reason: "Submitted PR service could not listen because the Windows JDK selector/XNIO provider failed before the HTTP request."
+adjacent_checks:
+  - name: "Sa-Token HTTP/business 401 contract test"
+    status: PASS
+  - name: "executor test-double compatibility"
+    status: PASS
+  - name: "GitHub build job"
+    status: PASS
+  - name: "GitHub security-report job"
+    status: PASS
+evidence:
+  - evidence/tests/focused-regression.md
+  - evidence/ci/run-33293392791.md
+  - evidence/runtime/startup-blocker.md
+  - evidence/api/unauthenticated-datasource-list.md
+  - evidence/edge/datasource-filter.md
+unsafe_or_secret_data: false
+recommendation_at_run_time: "Keep PR unmerged until ST-RES-006 is rerun against a reachable submitted-branch service."
+repository_state_observed_after_run:
+  observed_at: "2026-08-30"
+  pull_request: "MERGED"
+  issue: "CLOSED"
+  note: "The later repository state does not change this run's BLOCKED system-regression result."
