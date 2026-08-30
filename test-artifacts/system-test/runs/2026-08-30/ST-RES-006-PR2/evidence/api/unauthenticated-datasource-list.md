@@ -7,4 +7,3 @@
 - Request count: `0`.
 
 The passing handler contract test is recorded separately and is not promoted to an API or end-to-end pass.
-

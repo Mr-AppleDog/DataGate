@@ -9,4 +9,3 @@
 - Related reactor modules: 16/16 successful.
 
 The contract test verifies both the servlet HTTP status and the stable response body code are `401` for an unauthenticated request.
-

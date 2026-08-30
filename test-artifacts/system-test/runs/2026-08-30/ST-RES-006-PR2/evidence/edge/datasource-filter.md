@@ -8,4 +8,3 @@
 - Screenshot: none.
 
 The prior base-build Edge result remains historical evidence only; it is not reused as a PR regression pass.
-

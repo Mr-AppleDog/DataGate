@@ -34,4 +34,3 @@ Observed terminal state:
 - no product HTTP request was sent;
 - no test data was changed;
 - this is an environment blocker, not evidence that the original defect remains.
-
