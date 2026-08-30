@@ -1,0 +1,78 @@
+platform:
+  name: "DataGate"
+  repository_root: "E:/github-reposit/DataGate"
+  documentation:
+    - "docs/00-文档索引与项目基线.md"
+    - "docs/01-产品需求规格说明书.md"
+    - "docs/02-系统架构与模块详细设计.md"
+    - "docs/03-权限模型与审批流程规范.md"
+    - "docs/04-数据模型与数据库表设计.md"
+    - "docs/05-API错误码与状态机规范.md"
+    - "docs/06-数据源适配与安全执行规范.md"
+    - "docs/07-慢查询采集分析与告警设计.md"
+    - "docs/08-安全审计与威胁模型.md"
+    - "docs/09-部署监控备份恢复设计.md"
+    - "docs/10-MVP任务拆分与验收标准.md"
+    - "docs/11-AI实施交接说明.md"
+    - "docs/Codex并行测试与开发工作流程手册.md"
+
+environment:
+  kind: "local"
+  base_url: "http://localhost"
+  api_base_url: "http://127.0.0.1:8080"
+  build_or_commit: "8e94aea694d68438d810359c656c36d1b5354487 plus uncommitted local changes"
+  startup_command: "already running; process ownership and exact launch command not inspected"
+  health_check: "GET /actuator/health is reachable but requires authentication; no bypass was attempted"
+  feature_flags: []
+
+api:
+  auth_method: "Sa-Token existing browser session; shell checks remain unauthenticated unless repository provides a redacting harness"
+  client_or_harness: "PowerShell HTTP client for unauthenticated read-only/validation checks"
+  safe_mutations_allowed: false
+  redaction_rules: ["authorization", "cookie", "password", "token", "secret", "personal-data", "private-host"]
+
+browser:
+  family: "edge"
+  use_existing_session: true
+
+authorization:
+  permitted_roles: ["existing authenticated local test/admin session", "anonymous negative caller"]
+  permitted_accounts: ["existing Edge session only; credentials must not be exported"]
+  forbidden_actions:
+    - "modify business source code"
+    - "submit database credentials"
+    - "execute DML, DDL, Redis writes, export, approval, notification, or destructive SQL"
+    - "inspect or export cookies, tokens, passwords, local storage, or session storage"
+    - "modify production or shared test data"
+  production_writes_allowed: false
+
+issue_tracking:
+  provider: "github"
+  repository: "Mr-AppleDog/DataGate"
+  mode: "submit_authorized"
+  publication_confirmed: true
+
+test_data:
+  source: "existing"
+  run_marker: "ST-QRY-001"
+  reset_or_cleanup: "read-only run; no durable test data planned"
+
+scope:
+  run_mode: "focused-feature"
+  critical_journeys:
+    - "SQL workbench navigation and enabled-data-source discovery"
+    - "read-only query parse/execute failure-closed behavior"
+    - "anonymous authentication boundary for query APIs"
+  included_areas: ["QRY-001", "QRY-003", "QRY-005", "QRY-010", "RES-006", "AUD-001"]
+  excluded_areas:
+    - "writes, exports, approvals, notification delivery, credential changes"
+    - "load, failover, recovery, and production verification"
+    - "roles or accounts not already available in the Edge session"
+  known_risks:
+    - "working tree is dirty and the running build may include uncommitted local changes"
+    - "Issue #1 already records HTTP 200 responses carrying business code 401"
+    - "legacy unclassified evidence exists for a prior query failure and is not a verdict"
+
+evidence:
+  output_directory: "test-artifacts/system-test/runs/2026-08-30/ST-QRY-001"
+  redact: ["credentials", "tokens", "personal-data", "cookies", "session-storage", "private-hosts"]

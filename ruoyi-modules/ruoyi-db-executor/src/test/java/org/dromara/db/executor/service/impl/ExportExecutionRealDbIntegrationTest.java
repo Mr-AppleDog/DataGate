@@ -139,6 +139,7 @@ class ExportExecutionRealDbIntegrationTest {
             public boolean enable(Long id) { throw new UnsupportedOperationException(); }
             public boolean disable(Long id) { throw new UnsupportedOperationException(); }
             public org.dromara.common.mybatis.core.page.TableDataInfo<org.dromara.db.resource.domain.vo.DbDataSourceVo> queryPageList(org.dromara.db.resource.domain.bo.DbDataSourceBo bo, org.dromara.common.mybatis.core.page.PageQuery p) { throw new UnsupportedOperationException(); }
+            public java.util.List<org.dromara.db.resource.domain.vo.DbDataSourceVo> queryAvailableList() { return java.util.List.of(); }
             public org.dromara.db.resource.domain.vo.DbDataSourceVo queryVoById(Long id) { throw new UnsupportedOperationException(); }
         };
     }
@@ -160,7 +161,7 @@ class ExportExecutionRealDbIntegrationTest {
             public String append(AuditEventInput i) { return "e1"; }
             public String appendIsolated(AuditEventInput i) { return "i1"; }
             public AuditChainVerification verifyChain(String k) { return new AuditChainVerification(k, 0, true, null); }
-            @Override public List<AuditChainVerification> verifyChainRange(String fromChainKey, String toChainKey) { throw new UnsupportedOperationException(); }
+            public List<AuditChainVerification> verifyChainRange(String from, String to) { return List.of(); }
         };
     }
 }

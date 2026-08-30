@@ -1,0 +1,35 @@
+issue_tracking:
+  provider: "github"
+  repository: "Mr-AppleDog/DataGate"
+  mode: "submit_authorized"
+  authorized_at: "2026-08-30"
+  authorization_source: "Explicit user instruction in the DataGate Codex task"
+  allowed_actions:
+    - "Search open and closed issues for duplicates"
+    - "Create redacted, evidence-backed system-test defect issues"
+  forbidden_actions:
+    - "Comment on or modify existing issues"
+    - "Add labels, assignees, or milestones"
+    - "Close or reopen issues"
+    - "Publish credentials, tokens, cookies, personal data, private hosts, internal IP addresses, or raw secret-bearing logs"
+  limits:
+    max_created_issues_per_test_run: 5
+    group_same_root_cause: true
+    require_duplicate_search: true
+    require_redaction: true
+
+artifacts:
+  # Resolve every relative path against this repository root. Never write test
+  # artifacts into the global skill directory, user home, or another project.
+  root: "test-artifacts/system-test"
+  runs: "test-artifacts/system-test/runs"
+  unclassified: "test-artifacts/system-test/unclassified"
+  run_directory_pattern: "{yyyy-MM-dd}/{run-id}"
+  files:
+    profile: "profile.yaml"
+    matrix: "matrix.csv"
+    report: "report.md"
+  directories:
+    api_evidence: "evidence/api"
+    edge_evidence: "evidence/edge"
+    issue_drafts: "issues"

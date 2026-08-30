@@ -1,0 +1,18 @@
+{
+  "executedAt": "2026-08-30T03:05:00+08:00",
+  "command": "mvn -pl ruoyi-modules/ruoyi-db-console,ruoyi-modules/ruoyi-db-executor,ruoyi-modules/ruoyi-db-resource -am -Dtest=<four-targeted-test-classes> -Dsurefire.failIfNoSpecifiedTests=false -DskipTests=false test",
+  "result": "PASS",
+  "totals": {
+    "tests": 20,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "classes": [
+    {"name": "DbConsoleServiceImplTest", "tests": 4, "failures": 0, "errors": 0, "skipped": 0},
+    {"name": "QueryExecutionGatewayImplTest", "tests": 9, "failures": 0, "errors": 0, "skipped": 0},
+    {"name": "CredentialCryptoServiceTest", "tests": 4, "failures": 0, "errors": 0, "skipped": 0},
+    {"name": "FileKekProviderTest", "tests": 3, "failures": 0, "errors": 0, "skipped": 0}
+  ],
+  "coverageLimitation": "These tests do not cover the frontend/controller cancellation HTTP method contract or translation of a missing KEK version into CREDENTIAL_KEK_UNAVAILABLE."
+}

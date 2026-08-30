@@ -1,0 +1,26 @@
+[
+  {
+    "level": "warn",
+    "message": "[Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.",
+    "timestamp": "2026-08-29T18:03:46.073Z",
+    "url": "http://localhost/node_modules/.vite/deps/vue-router.js?v=a1f0d0be"
+  },
+  {
+    "level": "warn",
+    "message": "[Vue Router warn]: The `next()` callback in navigation guards is deprecated. Return the value instead of calling `next(value)`.",
+    "timestamp": "2026-08-29T18:03:46.074Z",
+    "url": "http://localhost/node_modules/.vite/deps/vue-router.js?v=a1f0d0be"
+  },
+  {
+    "level": "error",
+    "message": "AxiosError: Request failed with status code 500\n    at settle (http://localhost/node_modules/.vite/deps/axios.js?v=a1f0d0be:1319:7)\n    at XMLHttpRequest.onloadend (http://localhost/node_modules/.vite/deps/axios.js?v=a1f0d0be:1682:7)\n    at Axios.request (http://localhost/node_modules/.vite/deps/axios.js?v=a1f0d0be:2328:41)\n    at async getList (http://localhost/src/views/db/datasource/index.vue?t=1788024922343:213:26)",
+    "timestamp": "2026-08-29T18:05:44.751Z",
+    "url": "http://localhost/src/views/db/datasource/index.vue?t=1788024922343"
+  },
+  {
+    "level": "error",
+    "message": "AxiosError: Request failed with status code 500\n    at settle (http://localhost/node_modules/.vite/deps/axios.js?v=a1f0d0be:1319:7)\n    at XMLHttpRequest.onloadend (http://localhost/node_modules/.vite/deps/axios.js?v=a1f0d0be:1682:7)\n    at Axios.request (http://localhost/node_modules/.vite/deps/axios.js?v=a1f0d0be:2328:41)\n    at async getList (http://localhost/src/views/db/datasource/index.vue?t=1788024922343:213:26)",
+    "timestamp": "2026-08-29T18:05:51.605Z",
+    "url": "http://localhost/src/views/db/datasource/index.vue?t=1788024922343"
+  }
+]

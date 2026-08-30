@@ -131,11 +131,11 @@ public class AuthorizationDecisionServiceImpl implements AuthorizationDecisionSe
             // 解析器存在但返回空：资源不可解析 → 失败关闭
             return deny(DecisionReasonCodes.DENY_RESOURCE_UNRESOLVED, List.of(), policyVersion);
         }
-        // 步骤 4：加载候选授权（资源+祖先上的 user/dept/role/group 候选）
+        // 步骤 4：加载候选授权（资源+祖先或 GLOBAL 上的 user/dept/group/role 候选）
         SubjectMembership membership = resolveMembership(request.actorId());
         List<Grant> candidates = grantRepository.findCandidates(
             ancestors, request.action(), request.actorId(),
-            membership.deptIds(), membership.groupIds());
+            membership.deptIds(), membership.groupIds(), membership.roleIds());
 
         // 步骤 5：过滤未开始/已过期/已撤销/主体不匹配（主体不匹配已在查询层过滤；时效在此过滤）
         List<Grant> active = new ArrayList<>();

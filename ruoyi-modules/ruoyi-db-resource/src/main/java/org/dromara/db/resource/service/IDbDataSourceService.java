@@ -7,6 +7,8 @@ import org.dromara.db.resource.domain.DbDataSource;
 import org.dromara.db.resource.domain.bo.DbDataSourceBo;
 import org.dromara.db.resource.domain.vo.DbDataSourceVo;
 
+import java.util.List;
+
 /**
  * 数据源管理服务（RES-002/003/004，状态机 docs/05 第 4.1 节）
  *
@@ -54,6 +56,12 @@ public interface IDbDataSourceService {
      * 分页查询数据源（不含任何秘密字段）
      */
     TableDataInfo<DbDataSourceVo> queryPageList(DbDataSourceBo bo, PageQuery pageQuery);
+
+    /**
+     * 查询可进入受控执行链路的数据源。仅返回 ACTIVE 状态，避免控制台选择到草稿、
+     * 验证中、已禁用或错误状态的数据源；资源动作授权仍由执行网关逐资源判定。
+     */
+    List<DbDataSourceVo> queryAvailableList();
 
     /**
      * 按 ID 查询视图对象（不含任何秘密字段）

@@ -34,6 +34,13 @@
           <el-input-number v-model="form.maxRows" :min="1" :max="100000" :step="100" controls-position="right" style="width: 160px" />
         </el-form-item>
       </el-form>
+      <el-alert
+        v-if="!dataSourceLoading && dataSources.length === 0"
+        title="暂无已启用的数据源。请先到“数据源管理”添加 QUERY 凭据，测试连接成功后点击“启用”。"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
     </el-card>
 
     <!-- 语句编辑器（SQL / Redis 命令按引擎适配） -->
@@ -61,7 +68,7 @@
       <template #header>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
           <span style="font-weight: 600">查询结果</span>
-          <el-tag v-if="result" type="success">状态：{{ result.status }}</el-tag>
+          <el-tag v-if="result" :type="resultStatusTagType">状态：{{ result.status }}</el-tag>
           <el-tag v-if="result" type="info">行数：{{ result.rowCount }}</el-tag>
           <el-tag v-if="result" type="info">耗时：{{ result.durationMs }} ms</el-tag>
           <el-tag v-if="result" type="info">字节：{{ result.resultBytes }}</el-tag>
@@ -70,7 +77,7 @@
           <el-tag v-if="result && result.errorCode" type="danger">错误码：{{ result.errorCode }}</el-tag>
         </div>
       </template>
-      <el-alert v-if="result && result.errorCode" :title="`查询失败：${result.errorCode}`" type="error" :closable="false" show-icon class="mb-2" />
+      <el-alert v-if="result && result.errorCode" :title="resultErrorMessage" type="error" :closable="false" show-icon class="mb-2" />
       <el-table v-if="tableColumns.length" :data="tableData" border height="440" size="small" stripe>
         <el-table-column type="index" label="#" width="50" fixed="left" align="center" />
         <el-table-column v-for="col in tableColumns" :key="col" :prop="col" :label="col" :show-overflow-tooltip="true" min-width="140" />
@@ -81,12 +88,13 @@
 </template>
 
 <script setup lang="ts" name="DbConsole">
-import { list as listDataSources } from '@/api/db/datasource';
+import { listAvailable as listDataSources } from '@/api/db/datasource';
 import { query, cancel } from '@/api/db/console';
 import type { DataSourceVO } from '@/api/db/datasource';
 import type { QueryResultVO } from '@/api/db/console';
 
 const dataSources = ref<DataSourceVO[]>([]);
+const dataSourceLoading = ref(false);
 const loading = ref(false);
 const result = ref<QueryResultVO | null>(null);
 
@@ -108,6 +116,34 @@ const form = reactive({
 
 const canExecute = computed(() => !!form.dataSourceId && form.statement.trim().length > 0);
 const canCancel = computed(() => !!result.value?.executionNo);
+
+const resultStatusTagType = computed<'success' | 'warning' | 'danger' | 'info'>(() => {
+  switch (result.value?.status) {
+    case 'SUCCEEDED':
+      return 'success';
+    case 'RUNNING':
+      return 'warning';
+    case 'REJECTED':
+    case 'FAILED':
+      return 'danger';
+    default:
+      return 'info';
+  }
+});
+
+const resultErrorMessage = computed(() => {
+  const code = result.value?.errorCode;
+  if (code === 'RESOURCE_STATE_CONFLICT') {
+    return '查询被拒绝：数据源尚未启用或状态刚刚发生变化。请到“数据源管理”完成凭据配置、连接测试并启用后重试。';
+  }
+  if (code === 'AUTH_RESOURCE_UNDISCOVERABLE') {
+    return '查询被拒绝：表尚未同步到资源目录。请到“数据源管理”点击“同步”后重试。';
+  }
+  if (code === 'AUTH_RESOURCE_DENIED') {
+    return '查询被拒绝：当前账号没有该资源的 QUERY 权限。请到“访问控制 → 查询权限”提交申请，审批通过后重试。';
+  }
+  return `查询失败：${code || '未知错误'}`;
+});
 
 /** 按引擎类型过滤的数据源列表 */
 const filteredDataSources = computed(() => {
@@ -186,11 +222,17 @@ const unwrapList = (body: any): any[] => {
 
 /** 加载数据源列表 */
 const loadDataSources = async () => {
+  dataSourceLoading.value = true;
   try {
     const res: any = await listDataSources();
     dataSources.value = unwrapList(res);
+    if (form.dataSourceId && !dataSources.value.some((item) => item.id === form.dataSourceId)) {
+      form.dataSourceId = undefined;
+    }
   } catch (e) {
     dataSources.value = [];
+  } finally {
+    dataSourceLoading.value = false;
   }
 };
 

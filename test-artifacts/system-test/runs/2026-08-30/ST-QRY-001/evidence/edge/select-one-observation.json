@@ -1,0 +1,31 @@
+{
+  "checkedAtRange": "2026-08-30T02:55:00+08:00/2026-08-30T02:58:00+08:00",
+  "caseId": "ST-QRY-002",
+  "browser": "Microsoft Edge with Codex extension",
+  "action": "Execute the constant read-only statement SELECT 1 against an existing ACTIVE test source.",
+  "expected": "SUCCEEDED with one constant row and bounded execution metadata.",
+  "observed": {
+    "attempts": 3,
+    "successfulAttempts": 0,
+    "httpStatus": 200,
+    "applicationCode": 500,
+    "message": "发生未知异常，请联系管理员",
+    "stableErrorCodePresent": false,
+    "resultRowsShown": 0,
+    "sanitizedBackendException": "IllegalStateException: KEK 版本不可用"
+  },
+  "classification": {
+    "caseStatus": "BLOCKED",
+    "blocker": "The running local environment does not provide the KEK version required by the selected stored credential.",
+    "productDefect": "DEF-QRY-001",
+    "defectReason": "The product has CREDENTIAL_KEK_UNAVAILABLE but exposes a generic application code 500 instead of the stable retryable error."
+  },
+  "sourceCorrelation": [
+    "CredentialCryptoService.java:110-112 throws an untyped IllegalStateException when the KEK version is absent.",
+    "QueryExecutionGatewayImpl.java:195-200 resolves the active secret before the executor exception boundary.",
+    "DbErrorCode.java:41 defines CREDENTIAL_KEK_UNAVAILABLE (44004 / HTTP 503).",
+    "GlobalExceptionHandler.java:149-153 converts unmatched RuntimeException to a generic failure."
+  ],
+  "screenshot": "select-one-failure.png",
+  "redaction": "No data-source endpoint, credential identifier, key material, token, cookie, SQL result, or private host is retained."
+}

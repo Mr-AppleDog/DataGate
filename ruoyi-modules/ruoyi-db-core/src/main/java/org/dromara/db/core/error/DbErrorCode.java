@@ -32,7 +32,7 @@ public enum DbErrorCode {
     RESOURCE_CAPABILITY_UNSUPPORTED(43002, 400, "数据源不支持该能力", false),
     RESOURCE_ARCHIVED(43003, 409, "数据源已归档，不可恢复", false),
     RESOURCE_STATE_CONFLICT(43004, 409, "数据源状态不允许该操作", false),
-    RESOURCE_SSRF_BLOCKED(43005, 400, "连接地址未通过网络白名单校验", false),
+    RESOURCE_SSRF_BLOCKED(43005, 400, "连接地址被数据源网络安全策略拒绝", false),
 
     // ================= CREDENTIAL 44000-44999 =================
     CREDENTIAL_INVALID(44001, 400, "凭据验证失败", false),

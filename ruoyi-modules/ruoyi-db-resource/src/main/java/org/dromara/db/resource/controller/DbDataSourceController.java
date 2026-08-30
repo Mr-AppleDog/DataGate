@@ -9,8 +9,10 @@ import org.dromara.common.mybatis.core.page.TableDataInfo;
 import org.dromara.common.web.core.BaseController;
 import org.dromara.db.core.domain.ConnectionTestResult;
 import org.dromara.db.resource.domain.DbMetadataSyncJob;
+import org.dromara.db.resource.domain.bo.DbConnectionTestBo;
 import org.dromara.db.resource.domain.bo.DbDataSourceBo;
 import org.dromara.db.resource.domain.vo.DbDataSourceVo;
+import org.dromara.db.resource.service.DataSourceConnectionTestService;
 import org.dromara.db.resource.service.IDbDataSourceService;
 import org.dromara.db.resource.service.IMetadataSyncService;
 import org.springframework.validation.annotation.Validated;
@@ -40,6 +42,7 @@ public class DbDataSourceController extends BaseController {
 
     private final IDbDataSourceService dataSourceService;
     private final IMetadataSyncService metadataSyncService;
+    private final DataSourceConnectionTestService connectionTestService;
 
     /**
      * 分页查询数据源列表
@@ -48,6 +51,15 @@ public class DbDataSourceController extends BaseController {
     @GetMapping("/list")
     public TableDataInfo<DbDataSourceVo> list(DbDataSourceBo bo, PageQuery pageQuery) {
         return dataSourceService.queryPageList(bo, pageQuery);
+    }
+
+    /**
+     * 查询控制台可选数据源。服务端只返回 ACTIVE 状态，避免把不可执行状态暴露为可选项。
+     */
+    @SaCheckPermission("db:console:query")
+    @GetMapping("/available")
+    public R<List<DbDataSourceVo>> available() {
+        return R.ok(dataSourceService.queryAvailableList());
     }
 
     /**
@@ -78,6 +90,15 @@ public class DbDataSourceController extends BaseController {
     }
 
     /**
+     * 使用本次请求中的临时凭据测试尚未保存的结构化连接配置；临时密码不落库、不回显。
+     */
+    @SaCheckPermission("db:datasource:verify")
+    @PostMapping("/test-connection")
+    public R<ConnectionTestResult> testConnection(@Validated @RequestBody DbConnectionTestBo bo) {
+        return R.ok(connectionTestService.test(bo));
+    }
+
+    /**
      * 连接测试：解密专用凭据（内存最短驻留），返回分项能力结果
      */
     @SaCheckPermission("db:datasource:verify")
@@ -87,7 +108,7 @@ public class DbDataSourceController extends BaseController {
     }
 
     /**
-     * 启用数据源（仅验证成功或已禁用状态）
+     * 启用数据源（首次启用先同步元数据，失败时保持已验证状态）
      */
     @SaCheckPermission("db:datasource:enable")
     @PutMapping("/{id}/enable")

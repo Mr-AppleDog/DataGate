@@ -31,11 +31,13 @@ import org.dromara.db.resource.mapper.DbDataSourceMapper;
 import org.dromara.db.resource.registry.ConnectorRegistry;
 import org.dromara.db.resource.service.ICredentialVaultService;
 import org.dromara.db.resource.service.IDbDataSourceService;
+import org.dromara.db.resource.service.IMetadataSyncService;
 import org.dromara.db.resource.support.NetworkAddressValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -60,6 +62,7 @@ public class DbDataSourceServiceImpl implements IDbDataSourceService {
     private final ConnectorRegistry connectorRegistry;
     private final ICredentialVaultService credentialVaultService;
     private final IAuditService auditService;
+    private final IMetadataSyncService metadataSyncService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -73,7 +76,7 @@ public class DbDataSourceServiceImpl implements IDbDataSourceService {
                 Map.of("username", LoginHelper.getUsername() == null ? "" : LoginHelper.getUsername()),
                 "DATA_SOURCE", null, Map.of("host", maskHost(bo.getHost()), "port", bo.getPort()),
                 AuditResult.DENIED, null, null, null, Map.of("reason", check.reason())));
-            throw new DbServiceException(DbErrorCode.RESOURCE_SSRF_BLOCKED);
+            throw new DbServiceException(DbErrorCode.RESOURCE_SSRF_BLOCKED, check.reason());
         }
 
         // 环境必须存在且启用
@@ -117,7 +120,7 @@ public class DbDataSourceServiceImpl implements IDbDataSourceService {
         NetworkAddressValidator.ValidationResult check =
             networkAddressValidator.validate(bo.getHost(), bo.getPort());
         if (!check.allowed()) {
-            throw new DbServiceException(DbErrorCode.RESOURCE_SSRF_BLOCKED);
+            throw new DbServiceException(DbErrorCode.RESOURCE_SSRF_BLOCKED, check.reason());
         }
         DbDataSource update = MapstructUtils.convert(bo, DbDataSource.class);
         update.setConnectionOptions(serializeOptions(bo.getConnectionOptions()));
@@ -206,6 +209,11 @@ public class DbDataSourceServiceImpl implements IDbDataSourceService {
             throw new DbServiceException(DbErrorCode.RESOURCE_STATE_CONFLICT,
                 "只有验证成功或已禁用的数据源可以启用");
         }
+        // 首次启用必须先建立可鉴权资源目录。同步失败时保持 VERIFYING，避免出现
+        // “数据源已启用但所有带表查询均无法解析”的半可用状态（RES-005/M2-04）。
+        if (DataSourceStatus.VERIFYING.name().equals(ds.getStatus())) {
+            metadataSyncService.syncNow(id);
+        }
         return updateStatus(id, DataSourceStatus.ACTIVE, "DATASOURCE_ENABLE");
     }
 
@@ -250,6 +258,13 @@ public class DbDataSourceServiceImpl implements IDbDataSourceService {
             .orderByDesc(DbDataSource::getCreateTime);
         Page<DbDataSourceVo> page = dataSourceMapper.selectVoPage(pageQuery.build(), wrapper);
         return TableDataInfo.build(page);
+    }
+
+    @Override
+    public List<DbDataSourceVo> queryAvailableList() {
+        return dataSourceMapper.selectVoList(new LambdaQueryWrapper<DbDataSource>()
+            .eq(DbDataSource::getStatus, DataSourceStatus.ACTIVE.name())
+            .orderByAsc(DbDataSource::getName));
     }
 
     @Override

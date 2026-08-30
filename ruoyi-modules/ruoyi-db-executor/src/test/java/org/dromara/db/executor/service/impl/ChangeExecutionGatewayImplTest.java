@@ -121,6 +121,7 @@ class ChangeExecutionGatewayImplTest {
         @Override public boolean enable(Long id) { throw new UnsupportedOperationException(); }
         @Override public boolean disable(Long id) { throw new UnsupportedOperationException(); }
         @Override public org.dromara.common.mybatis.core.page.TableDataInfo<org.dromara.db.resource.domain.vo.DbDataSourceVo> queryPageList(org.dromara.db.resource.domain.bo.DbDataSourceBo bo, org.dromara.common.mybatis.core.page.PageQuery pageQuery) { throw new UnsupportedOperationException(); }
+        @Override public java.util.List<org.dromara.db.resource.domain.vo.DbDataSourceVo> queryAvailableList() { return java.util.List.of(); }
         @Override public org.dromara.db.resource.domain.vo.DbDataSourceVo queryVoById(Long id) { throw new UnsupportedOperationException(); }
     }
 
@@ -142,6 +143,6 @@ class ChangeExecutionGatewayImplTest {
         @Override public String append(AuditEventInput input) { return "e1"; }
         @Override public String appendIsolated(AuditEventInput input) { return "i1"; }
         @Override public AuditChainVerification verifyChain(String chainKey) { return new AuditChainVerification(chainKey, 0, true, null); }
-        @Override public List<AuditChainVerification> verifyChainRange(String fromChainKey, String toChainKey) { throw new UnsupportedOperationException(); }
+        @Override public List<AuditChainVerification> verifyChainRange(String fromChainKey, String toChainKey) { return List.of(); }
     }
 }

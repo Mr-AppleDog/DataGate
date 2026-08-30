@@ -250,7 +250,8 @@ public class QueryExecutionGatewayImpl implements QueryExecutionGateway {
         List<Long> ids = pathResolver.get().resolve(dataSourceId, defaultDatabase, paths);
         if (ids == null || ids.size() < paths.size() || ids.contains(null)) {
             throw auditAndThrow(req, ds, DbErrorCode.AUTH_RESOURCE_UNDISCOVERABLE,
-                "部分资源路径无法解析为可鉴权资源", AuditResult.DENIED, startedAt, stmt.fingerprint(), null);
+                "资源尚未同步或不在可见资源目录，请在数据源管理执行元数据同步后重试",
+                AuditResult.DENIED, startedAt, stmt.fingerprint(), null);
         }
         return ids;
     }

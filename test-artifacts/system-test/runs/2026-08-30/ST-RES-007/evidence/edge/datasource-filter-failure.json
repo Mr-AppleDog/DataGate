@@ -1,0 +1,11 @@
+{
+  "case_id": "ST-RES-007",
+  "final_url": "http://localhost/data-assets/datasources",
+  "action": "reset; enter smoke-mysql; click 搜索",
+  "expected": "Only the matching row is visible and total is 1",
+  "observed_alert": "系统接口500异常",
+  "observed_visible_row_count": 3,
+  "observed_total": "共 3 条",
+  "observed_filter_value": "smoke-mysql",
+  "cleanup": "none; read-only"
+}

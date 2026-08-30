@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-08-30T02:51:30+08:00",
+  "checks": [
+    {
+      "name": "ui-root",
+      "request": "GET http://localhost/",
+      "status": 404,
+      "latencyMs": 2312,
+      "bodyRetained": false,
+      "observation": "The listener responded but the root entry returned no page content. Edge verification remains required."
+    },
+    {
+      "name": "actuator-health",
+      "request": "GET http://127.0.0.1:8080/actuator/health",
+      "status": 401,
+      "latencyMs": 33,
+      "applicationCode": 401,
+      "observation": "The API listener is reachable; health details require permitted authentication and were not bypassed."
+    }
+  ],
+  "redaction": "No authorization, cookie, token, credential, private host, or response detail was retained."
+}

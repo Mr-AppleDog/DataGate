@@ -1,0 +1,54 @@
+platform:
+  name: "DataGate"
+  repository_root: "E:/github-reposit/DataGate"
+  documentation:
+    - "docs/01-产品需求规格说明书.md:174"
+    - "docs/05-API错误码与状态机规范.md:28"
+
+environment:
+  kind: "local"
+  base_url: "http://localhost"
+  api_base_url: "http://127.0.0.1:8080"
+  build_or_commit: "unknown"
+  startup_command: "already running"
+  health_check: "HTTP entry and protected list endpoint"
+  feature_flags: []
+
+api:
+  auth_method: "none for negative authorization check"
+  client_or_harness: "PowerShell Invoke-WebRequest"
+  safe_mutations_allowed: false
+  redaction_rules: ["authorization", "cookie", "password", "token", "secret", "personal-data"]
+
+browser:
+  family: "edge"
+  use_existing_session: true
+
+authorization:
+  permitted_roles: ["existing authenticated administrator session"]
+  permitted_accounts: ["existing Edge session; identity not exported"]
+  forbidden_actions: ["application data writes", "credential inspection", "session export", "GitHub issue comments/labels/assignees/closures"]
+  production_writes_allowed: false
+
+issue_tracking:
+  provider: "github"
+  repository: "Mr-AppleDog/DataGate"
+  mode: "submit_authorized"
+  publication_confirmed: true
+  authorization_scope: "Create evidence-backed, deduplicated, redacted test defect issues; maximum 5 per run"
+
+test_data:
+  source: "existing"
+  run_marker: "ST-RES-006"
+  reset_or_cleanup: "none; read-only"
+
+scope:
+  run_mode: "smoke"
+  critical_journeys: ["resource discovery authorization and datasource name filtering"]
+  included_areas: ["unauthenticated datasource list API", "Edge datasource list filter"]
+  excluded_areas: ["create/edit/verify/enable/sync datasource", "query execution"]
+  known_risks: ["existing browser session role is inferred from visible authorized page"]
+
+evidence:
+  output_directory: "E:/github-reposit/DataGate/test-artifacts/system-test/runs/2026-08-30/ST-RES-006"
+  redact: ["credentials", "tokens", "personal-data", "cookies", "session-storage"]

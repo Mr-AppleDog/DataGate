@@ -137,3 +137,9 @@ api-decrypt:
 # Sa-Token JWT 密钥：生产必须经环境变量注入
 sa-token:
   jwt-secret-key: ${DATAGATE_JWT_SECRET:}
+
+# 生产必须显式配置公司数据源网段或审批通过的精确地址；空值会失败关闭。
+datagate:
+  security:
+    datasource-network:
+      allowed-cidrs: ${DATAGATE_DATASOURCE_ALLOWED_CIDRS:}

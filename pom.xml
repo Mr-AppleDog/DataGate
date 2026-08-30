@@ -519,7 +519,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
-                    <argLine>-Dfile.encoding=UTF-8</argLine>
+                    <argLine>-Xmx512m -XX:+UseSerialGC -XX:MaxMetaspaceSize=192m -Xss512k -Djdk.attach.allowAttachSelf=true -Dfile.encoding=UTF-8</argLine>
                     <!-- 根据打包环境执行对应的@Tag测试方法；DataGate 纯单元测试统一打 @Tag("unit") -->
                     <groups>${testTags}</groups>
                     <!-- 排除标签 -->

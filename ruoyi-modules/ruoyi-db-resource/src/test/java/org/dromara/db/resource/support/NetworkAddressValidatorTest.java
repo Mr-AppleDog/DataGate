@@ -15,7 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Tag("unit")
 class NetworkAddressValidatorTest {
 
-    private final NetworkAddressValidator validator = new NetworkAddressValidator();
+    private final NetworkAddressValidator validator = new NetworkAddressValidator(
+        "10.0.0.0/8,192.168.0.0/16,100.64.0.0/10,100.128.0.1/32");
 
     @Test
     void shouldAllowPrivateLanAndPublicIp() {
@@ -39,10 +40,15 @@ class NetworkAddressValidatorTest {
     }
 
     @Test
-    void shouldDenyCgnatRange() {
-        assertFalse(validator.validate("100.64.0.1", 3306).allowed());
-        assertFalse(validator.validate("100.127.255.254", 3306).allowed());
+    void shouldAllowConfiguredCgnatRange() {
+        assertTrue(validator.validate("100.64.0.1", 3306).allowed());
+        assertTrue(validator.validate("100.127.255.254", 3306).allowed());
         assertTrue(validator.validate("100.128.0.1", 3306).allowed());
+    }
+
+    @Test
+    void shouldDenyAddressOutsideConfiguredCidrs() {
+        assertFalse(validator.validate("8.8.8.8", 3306).allowed());
     }
 
     @Test

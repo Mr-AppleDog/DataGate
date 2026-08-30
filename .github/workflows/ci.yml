@@ -6,15 +6,20 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      MAVEN_OPTS: -Xmx768m -XX:+UseSerialGC -XX:MaxMetaspaceSize=256m -Xss512k
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -22,7 +27,20 @@ jobs:
 
       # 编译与单元测试（@Tag("unit") 的纯单元测试在所有环境运行；真实引擎集成测试在独立 job）
       - name: Build & unit test
-        run: mvn clean install -B -DskipTests=false
+        run: mvn -T 2 -B verify -DskipTests=false
+
+  security-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
 
       # SBOM（docs/00 第 4.2 节：依赖清单、镜像和驱动均需在 CI 生成 SBOM）
       # 非关键：插件版本/网络问题不阻断编译+单测（与漏洞报告一致 continue-on-error）
@@ -36,7 +54,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload SBOM & reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-and-security-reports
           path: |

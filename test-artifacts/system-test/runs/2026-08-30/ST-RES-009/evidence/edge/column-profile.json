@@ -1,0 +1,10 @@
+{
+  "case_id": "ST-MASK-001",
+  "final_url": "http://localhost/data-assets/column-profile",
+  "action": "keep table resource ID 1; click 查询列",
+  "expected": "clear empty state with no unauthorized column data",
+  "observed_empty_state": "暂无数据",
+  "observed_row_count": 0,
+  "unauthorized_column_data_visible": false,
+  "cleanup": "none; read-only"
+}

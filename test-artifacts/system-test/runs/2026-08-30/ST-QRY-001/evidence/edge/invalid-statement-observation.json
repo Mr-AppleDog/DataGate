@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-08-30T02:59:00+08:00",
+  "caseId": "ST-QRY-003",
+  "browser": "Microsoft Edge with Codex extension",
+  "statementClass": "intentionally invalid, non-mutating syntax",
+  "expected": "Fail closed with a stable parse error and no result rows.",
+  "observed": {
+    "terminalStatus": "REJECTED",
+    "errorCode": "QUERY_PARSE_FAILED",
+    "rows": 0,
+    "bytes": 0,
+    "resultBodyPresent": false
+  },
+  "status": "PASS",
+  "coverageLimitation": "No independent target-database trace or audit-record oracle was available, so zero target execution and AUD-001 persistence remain unverified.",
+  "screenshot": "invalid-statement-rejected.png",
+  "redaction": "No data-source endpoint, credential, token, cookie, query result, or private host is retained."
+}

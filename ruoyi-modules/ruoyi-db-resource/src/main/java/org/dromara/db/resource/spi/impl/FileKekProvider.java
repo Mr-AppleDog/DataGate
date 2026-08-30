@@ -77,7 +77,10 @@ public class FileKekProvider {
                 .map(l -> l.split(":", 2)[0].trim())
                 .orElseThrow();
         } catch (IOException e) {
-            throw new IllegalStateException("KEK 文件不可读，应用失败关闭", e);
+            throw new IllegalStateException(
+                "KEK 文件不可读，应用失败关闭；开发环境请先运行 script/datagate/init-dev-kek.ps1（Windows）"
+                    + " 或 script/datagate/init-dev-kek.sh（Linux/macOS）",
+                e);
         }
         String version = currentVersion;
         return new KekProvider() {
